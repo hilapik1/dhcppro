@@ -1,7 +1,7 @@
 import socket
 from time import sleep
 
-UDP_IP = "172.16.16.182"
+UDP_IP = "172.16.20.211"
 UDP_PORT = 2023
 #DISCOVER_MESSAGE = b"discover"
 DISCOVER_MESSAGE="discover"
@@ -19,15 +19,18 @@ print("message: %s" % DISCOVER_MESSAGE)
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-#sock.bind(("0.0.0.0", 2023))
+sock.bind(("0.0.0.0", 2023))
 
 while True:
 
-        sock.sendto(bytes(DISCOVER_MESSAGE, "utf-8"), ("255.255.255.255", 2023))
+        i = sock.sendto(bytes(DISCOVER_MESSAGE, "utf-8"), ("255.255.255.255", 2023))
+        print(i)
         print("sent discover")
         data, addr = sock.recvfrom(1024)  # expecting to recieve an offer msg
         sleep(1)
-        if data.startswith() == OFFER_MESSAGE:
+        print("fgdfd")
+        print(data)
+        if data.startswith(OFFER_MESSAGE.encode()):
                 msg=data.split(" ")  #["offer",ip adr]
                 ip_adr=msg[1]
                 REQUEST_MESSAGE=REQUEST_MESSAGE+" "+ip_adr
