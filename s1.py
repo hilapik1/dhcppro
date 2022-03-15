@@ -8,57 +8,91 @@ from scapy.layers.dhcp import DHCP, BOOTP
 from scapy.layers.inet import UDP, IP
 import scapy.all as scapy
 from scapy.layers.l2 import Ether
-#import constant
 from client import mac_to_bytes, client_mac
 import os
 from file import Constants
 from queue import Queue
 
 
-
 MAX_MSG_LENGTH = 1024
 UDP_IP = "192.168.31.24"
 UDP_PORT = 2023
-#server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)# UDP
 DISCOVER_MESSAGE = "discover"
 OFFER_MESSAGE = "offer"
 REQUEST_MESSAGE = "request"
 ACKNOWLEDGE_MESSSAGE = "acknowledge"
-#allip = ["172.16.20.212"] #"255.255.255.0" at school
-allip = ["192.168.31.25"] #"255.255.255.0" at home
-list_users = [] #id, MAC address, ip
 MAX_COUNT = 40
 LAST_NUM = 26
-#IP_FIRST_PART = "172.16.20." at school
-IP_FIRST_PART = "192.168.31." #at home
-Index = 0
-IpQueue = Queue()
-IpQueue.put("192.168.31.25")
-#to do queue of ips
-#to do a dictionarry of Mac address: Ip address
+IP_ADRESS = "172.16.20.211"
+SUBNET_MASK = "255.255.255.0"
+Index = 1
+SIZE_QUEUE = 0
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)  # UDP
 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 server_socket.bind((UDP_IP, UDP_PORT))
 #server_socket.listen()
-#class constants
 
-# class Constants:
-#     a = 4
-#     def __init__(self):
-#         self.x = 5
 
-def create_ips(LAST_NUM):
-    # this for create the ip
-    for i in range(MAX_COUNT):
-        CREATE_IP = IP_FIRST_PART + str(LAST_NUM)  # 192.168.31.26
-        print(type(CREATE_IP))
-        LAST_NUM += 1
-        allip.append(CREATE_IP)
-        str_index=str(i+1)
-        print(type(str_index))
-        print("ID: %s" % str_index + " IP address: %s" % str(CREATE_IP))
+class IP_allocator:
+
+    def __init__(self, subnet_mask, ip_addr):
+        self.subnet_mask=subnet_mask
+        self.ip_addr=ip_addr
+        self.ip_bank = Queue()
+        self.offer_dict={}
+        self.allocated_dict={}
+        #identify static part in ip
+        subnet_mask_parts =self.subnet_mask.split(Constants.IP_SAPARATOR)
+        #ip_addr_parts = self.ip_addr.split(Constants.IP_SAPARATOR)
+
+        # ip_tupples_parts = []
+        # for i in range(0, len(subnet_mask_parts))]:
+        #      ip_tupples_parts.append((subnet_mask_parts[i], ip_addr_parts[i]))
+        #ip_tupples_parts = [(subnet_mask_parts[i], ip_addr_parts[i]) for i in range(0, len(subnet_mask_parts))]
+        subnet_counter = 0
+        for part in ip_tupples_parts:
+            if part[Constants.MASK_PART] == Constants.STATIC_MASK_PART:
+                subnet_counter +=8
+            else:
+                subnet_counter += 8
+                num = int(part[Constants.MASK_PART])
+                while True:
+                    digit = num % 2
+                    num = num / 2
+                    if digit == 1:
+                        break
+                    subnet_counter -= 1
+
+        net4 = ipaddress.ip_network(self.ip_addr + '/' + str(subnet_counter))
+        ip = "192.168.1.3"
+        self.size_queue = 0
+        for x in net4.hosts():
+            print(x)
+            self.ip_bank = x
+            self.size_queue += 1
+
+        # #loop om dynamic part to generate ips
+        # for i in range(4):
+        #     if len(static_ip_parts) > i:
+        #         part = static_ip_parts[i]
+        #         ip_tupples_parts[Constants.MASK_PART]
+        #         pass
+        #         #handle copy part and complete missing
+        #     else:
+        #         #generateDynamic part
+    def offer_dictionary(self, mac):
+        ip_requested = self.ip_bank.pop()
+        timeout = str(8267) + "s"
+        self.offer_dict.update({mac: (ip_requested, timeout)})
+        return ip_requested
+
+    def acknowledge_dictionary(self, ip, mac):
+        timeout = str(8267) + "s"
+        self.allocated_dict.update({mac: (ip, timeout)})
+        return self.allocated_dict
+
 
 def filter(packet):
     if UDP in packet:
@@ -71,29 +105,34 @@ def mac_to_bytes(mac_addr: str) -> bytes:
     """
     return int(mac_addr.replace(":", ""), 16).to_bytes(6, "big")
 
+
 def handle_packets(packet, Index):
     mac = packet[Ether].src
+    ip_obj=IP_allocator(SUBNET_MASK,IP_ADRESS)
     type_message = packet[DHCP].options[0][1] #1-discover, 3-request
     #build offer
     #if type message = 1 , we will send an offer message
     if type_message == 1:
+        ip_requested = ip_obj.offer_dictionary(mac)
         ethernet = Ether(dst=mac, src="18:60:24:8F:64:90", type=0x800)
-        ip = IP(dst=allip[Index], src="172.16.20.211")#dest_addr
+        ip = IP(dst=ip_requested, src="172.16.20.211")#dest_addr
         udp = UDP(sport=Constants.src_port, dport=Constants.dest_port)
-        bootp = BOOTP(op=2, yiaddr=allip[Index], siaddr="172.16.20.211", chaddr=mac)
-        dhcp = DHCP(options=[("message-type", "offer"), ("server_id", allip[Index]), ("broadcast_address", "255.255.255.255"),
+        bootp = BOOTP(op=2, yiaddr=ip_requested, siaddr="172.16.20.211", chaddr=mac)
+        dhcp = DHCP(options=[("message-type", "offer"), ("server_id", ip_requested), ("broadcast_address", "255.255.255.255"),
                              ("router", "172.16.255.254"), ("subnet_mask", "255.255.0.0"), ("lease_time", str(8267) + " s")]) #router - gateway :"172.16.255.254"
         of_pack = ethernet / ip / udp / bootp / dhcp
-        # sendp(offer)
         sendp(of_pack)
     elif type_message == 3:
         #bulid acknolwedge
+        cur_ip = packet[DHCP].options[2][1]
+        alocated_dict = ip_obj.allocated_dict(cur_ip)
         ethernet = Ether(dst=mac, src="18:60:24:8F:64:90", type=0x800)
-        ip = IP(dst=allip[Index], src="172.16.20.211")  # dest_addr
+        #save_ip=get_requested_ip(IpQueue)
+        ip = IP(dst=cur_ip, src="172.16.20.211")  # dest_addr
         udp = UDP(sport=Constants.src_port, dport=Constants.dest_port)
-        bootp = BOOTP(op=2, yiaddr=allip[Index], siaddr="172.16.20.211", chaddr=mac)
+        bootp = BOOTP(op=2, yiaddr=cur_ip, siaddr="172.16.20.211", chaddr=mac)
         dhcp = DHCP(
-            options=[("message-type", "offer"), ("server_id", allip[Index]), ("broadcast_address", "255.255.255.255"),
+            options=[("message-type", "offer"), ("server_id", cur_ip), ("broadcast_address", "255.255.255.255"),
                      ("router", "172.16.255.254"), ("subnet_mask", "255.255.0.0"),
                      ("lease_time", str(8267) + " s")])  # router - gateway :"172.16.255.254"
         of_pack1 = ethernet / ip / udp / bootp / dhcp
@@ -106,43 +145,13 @@ def handle_packets(packet, Index):
 
 
 while True:
-    create_ips(LAST_NUM)
+    SIZE_QUEUE = create_ips(LAST_NUM)
     print("enter to loop")
     try:
         print("enter to try")
         # sock.sendto(bytes("hello", "utf-8"), ip_co)
-        pa = sniff(lfilter=filter, prn=lambda: handle_packets(pa, Index))#expecting to recieve discover msg
-        print("hi")
-        for packet in pa:
-            if DHCP in pa and pa[DHCP].options[0][1] == 1: #message type=1, that means discover message
-                    print("edv")
-                    OFFER_MESSAGE = OFFER_MESSAGE + " " + allip[Index]
-                    Index += 1
-                    result = scapy.sr(scapy.Ether(dst="ff:ff:ff:ff:ff:ff") / scapy.IP(dst="255.255.255.255", src="172.16.20.211") / scapy.UDP(sport=2023, dport=2025) / scapy.Raw( OFFER_MESSAGE), verbose=0, timeout=3)
-                    print("offer msg" + OFFER_MESSAGE)
-                    pa = (
-                            Ether(dst="ff:ff:ff:ff:ff:ff") /
-                            IP(src="0.0.0.0", dst="255.255.255.255") /
-                            UDP(sport=Constants.src_port, dport=Constants.dest_port) /
-                            BOOTP(
-                                chaddr=mac_to_bytes(client_mac),
-                                xid=random.randint(1, 2 ** 32 - 1),
-                            ) /
-                            DHCP(options=[("message-type", "discover"), "end"])
-                    )
+        pa = sniff(lfilter=filter, prn=lambda: handle_packets(pa, Index, IpQueue))#expecting to recieve discover msg
 
-                    pa = sniff(lfilter=filter, iface="Software Loopback Interface 1")# expecting to recieve discover msg
-                    for packet in pa:
-                        msg = pa[raw]
-                        message=msg = msg.split(" ")  # ["request",ip adr]
-                        ip_adr = message[1]
-                        if message.startswith() == REQUEST_MESSAGE:
-                           # user = "id " + addr + " " + ip_adr
-                            list_users.append(user)  # a new user added to the list
-                            user = ip_adr
-                            result2 = scapy.sr(scapy.Ether(dst="ff:ff:ff:ff:ff:ff") / scapy.IP(dst="255.255.255.255",src="172.16.20.211") / scapy.UDP(sport=2023, dport=2024) / scapy.Raw(ACKNOWLEDGE_MESSSAGE), verbose=0, timeout=3)
-                        else:
-                            print("error")
     except:
         print("error")
         continue

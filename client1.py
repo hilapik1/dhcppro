@@ -13,10 +13,10 @@ os.system("python file.py")
 
 UDP_IP = "172.16.20.211"
 UDP_PORT = 2024
-DISCOVER_MESSAGE="discover"
-OFFER_MESSAGE="offer"
-REQUEST_MESSAGE="request"
-ACKNOWLEDGE_MESSSAGE="acknowledge"
+DISCOVER_MESSAGE = "discover"
+OFFER_MESSAGE = "offer"
+REQUEST_MESSAGE = "request"
+ACKNOWLEDGE_MESSSAGE = "acknowledge"
 SETTINGS={}
 
 print("UDP target IP: %s" % UDP_IP)
@@ -46,7 +46,7 @@ class DHCP_generator:
     def __init__(self, src_port, dest_port, client_mac):
         self.src_port = src_port
         self.dest_port = dest_port
-        self.mac=client_mac
+        self.mac = client_mac
 
     def discover_generate(self):
         #src_port=2025, dst_port=2023
@@ -78,8 +78,10 @@ while True:
         client_mac = "18:60:24:8F:64:90"#"01:02:03:04:05:06"
         generator = DHCP_generator(Constants.src_port, Constants.dest_port, client_mac)# src_port=2025, dest_port=2023
         dhcp_discover = generator.discover_generate()
-        SETTINGS = {"serverIP": dhcp_discover[BOOTP].siaddr, "clientIP": dhcp_discover[BOOTP].yiaddr, "XID": dhcp_discover[BOOTP].xid}
-        result= srp1(dhcp_discover, verbose=False)#, iface="Software Loopback Interface 1"  # expecting to recieve an offer msg
+        # SETTINGS = {"serverIP": dhcp_discover[BOOTP].siaddr, "clientIP": dhcp_discover[BOOTP].yiaddr, "XID": dhcp_discover[BOOTP].xid}
+        result = srp1(dhcp_discover, verbose=False)#, iface="Software Loopback Interface 1"  # expecting to recieve an offer msg
+        SETTINGS = {"serverIP": dhcp_discover[BOOTP].siaddr, "clientIP": result[BOOTP].yiaddr,
+                    "XID": dhcp_discover[BOOTP].xid}
         for packet in result:
                 if DHCP in result and result[DHCP].options[0][1] == 2:  # message type=2, that means offer message
                          dhcp_request = generator.request_generate()
