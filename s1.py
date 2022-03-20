@@ -1,3 +1,4 @@
+import ipaddress
 import select
 import socket
 import time
@@ -8,7 +9,6 @@ from scapy.layers.dhcp import DHCP, BOOTP
 from scapy.layers.inet import UDP, IP
 import scapy.all as scapy
 from scapy.layers.l2 import Ether
-from client import mac_to_bytes, client_mac
 import os
 from file import Constants
 from queue import Queue
@@ -28,11 +28,11 @@ SUBNET_MASK = "255.255.255.0"
 Index = 1
 SIZE_QUEUE = 0
 
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)  # UDP
-server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-server_socket.bind((UDP_IP, UDP_PORT))
-#server_socket.listen()
+# server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)  # UDP
+# server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+# server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+# server_socket.bind((UDP_IP, UDP_PORT))
+# #server_socket.listen()
 
 
 class IP_allocator:
@@ -44,13 +44,13 @@ class IP_allocator:
         self.offer_dict={}
         self.allocated_dict={}
         #identify static part in ip
-        subnet_mask_parts =self.subnet_mask.split(Constants.IP_SAPARATOR)
-        #ip_addr_parts = self.ip_addr.split(Constants.IP_SAPARATOR)
+        self.subnet_mask_parts =self.subnet_mask.split(Constants.IP_SAPARATOR)
+        self.ip_addr_parts = self.ip_addr.split(Constants.IP_SAPARATOR)
 
         # ip_tupples_parts = []
-        # for i in range(0, len(subnet_mask_parts))]:
-        #      ip_tupples_parts.append((subnet_mask_parts[i], ip_addr_parts[i]))
-        #ip_tupples_parts = [(subnet_mask_parts[i], ip_addr_parts[i]) for i in range(0, len(subnet_mask_parts))]
+        # for i in range(0, len(self.subnet_mask_parts))]:
+        #    ip_tupples_parts.append((self.subnet_mask_parts[i], self.ip_addr_parts[i]))
+        ip_tupples_parts = [(self.subnet_mask_parts[i], self.ip_addr_parts[i]) for i in range(0, len(self.subnet_mask_parts))]
         subnet_counter = 0
         for part in ip_tupples_parts:
             if part[Constants.MASK_PART] == Constants.STATIC_MASK_PART:
@@ -100,13 +100,15 @@ def filter(packet):
             return True
     return False
 
+
 def mac_to_bytes(mac_addr: str) -> bytes:
     """ Converts a MAC address string to bytes.
     """
     return int(mac_addr.replace(":", ""), 16).to_bytes(6, "big")
 
 
-def handle_packets(packet, Index):
+def handle_packets(packet):
+    print("hello")
     mac = packet[Ether].src
     ip_obj=IP_allocator(SUBNET_MASK,IP_ADRESS)
     type_message = packet[DHCP].options[0][1] #1-discover, 3-request
@@ -142,26 +144,25 @@ def handle_packets(packet, Index):
     Index += 1
 
 
-
-
-while True:
-    SIZE_QUEUE = create_ips(LAST_NUM)
-    print("enter to loop")
-    try:
-        print("enter to try")
-        # sock.sendto(bytes("hello", "utf-8"), ip_co)
-        pa = sniff(lfilter=filter, prn=lambda: handle_packets(pa, Index, IpQueue))#expecting to recieve discover msg
-
-    except:
-        print("error")
-        continue
-
-
 def main():
-    print("hi")
+
+    while True:
+
+        print("enter to loop")
+        try:
+
+            print("enter to try")
+            # sock.sendto(bytes("hello", "utf-8"), ip_co)
+            pa = sniff(lfilter=filter, prn=handle_packets)#expecting to recieve discover msg
+
+        except:
+            print("error")
+            continue
 
 
-if name == "main":
+
+
+if __name__ == "__main__":
     main()
 
     # DHCPTypes = {
