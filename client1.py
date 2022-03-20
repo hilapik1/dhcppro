@@ -24,9 +24,9 @@ print("UDP target port: %s" % UDP_PORT)
 print("message: %s" % DISCOVER_MESSAGE)
 
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-sock.bind(("0.0.0.0", 2025))
+# sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+# sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+# sock.bind(("0.0.0.0", 2025))
 
 
 def mac_to_bytes(mac_addr: str) -> bytes:

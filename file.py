@@ -8,4 +8,5 @@ class Constants:
     IP_SAPARATOR ="."
 
     def __init__(self):
+        pass
         #NONE
