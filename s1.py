@@ -94,11 +94,11 @@ class IP_allocator:
         return self.allocated_dict
 
 
-def filter(packet):
-    if UDP in packet:
-        if packet[UDP].dport == Constants.dest_port:
-            return True
-    return False
+# def filter(packet):
+#     if UDP in packet:
+#         if packet[UDP].dport == Constants.dest_port:
+#             return True
+#     return False
 
 
 def mac_to_bytes(mac_addr: str) -> bytes:
@@ -107,45 +107,122 @@ def mac_to_bytes(mac_addr: str) -> bytes:
     return int(mac_addr.replace(":", ""), 16).to_bytes(6, "big")
 
 
-def handle_packets(packet):
-    print("hello")
-    mac = packet[Ether].src
-    ip_obj=IP_allocator(SUBNET_MASK,IP_ADRESS)
-    type_message = packet[DHCP].options[0][1] #1-discover, 3-request
-    #build offer
-    #if type message = 1 , we will send an offer message
-    if type_message == 1:
+# def handle_packets(packet):
+#     print("hello")
+#     mac = packet[Ether].src
+#     ip_obj=IP_allocator(SUBNET_MASK,IP_ADRESS)
+#     type_message = packet[DHCP].options[0][1] #1-discover, 3-request
+#     #build offer
+#     #if type message = 1 , we will send an offer message
+#     if type_message == 1:
+#         ip_requested = ip_obj.offer_dictionary(mac)
+#         ethernet = Ether(dst=mac, src="18:60:24:8F:64:90", type=0x800)
+#         ip = IP(dst=ip_requested, src="172.16.20.211")#dest_addr
+#         udp = UDP(sport=Constants.src_port, dport=Constants.dest_port)
+#         bootp = BOOTP(op=2, yiaddr=ip_requested, siaddr="172.16.20.211", chaddr=mac)
+#         dhcp = DHCP(options=[("message-type", "offer"), ("server_id", ip_requested), ("broadcast_address", "255.255.255.255"),
+#                              ("router", "172.16.255.254"), ("subnet_mask", "255.255.0.0"), ("lease_time", str(8267) + " s")]) #router - gateway :"172.16.255.254"
+#         of_pack = ethernet / ip / udp / bootp / dhcp
+#         sendp(of_pack)
+#     elif type_message == 3:
+#         #bulid acknolwedge
+#         cur_ip = packet[DHCP].options[2][1]
+#         alocated_dict = ip_obj.allocated_dict(cur_ip)
+#         ethernet = Ether(dst=mac, src="18:60:24:8F:64:90", type=0x800)
+#         #save_ip=get_requested_ip(IpQueue)
+#         ip = IP(dst=cur_ip, src="172.16.20.211")  # dest_addr
+#         udp = UDP(sport=Constants.src_port, dport=Constants.dest_port)
+#         bootp = BOOTP(op=2, yiaddr=cur_ip, siaddr="172.16.20.211", chaddr=mac)
+#         dhcp = DHCP(
+#             options=[("message-type", "offer"), ("server_id", cur_ip), ("broadcast_address", "255.255.255.255"),
+#                      ("router", "172.16.255.254"), ("subnet_mask", "255.255.0.0"),
+#                      ("lease_time", str(8267) + " s")])  # router - gateway :"172.16.255.254"
+#         of_pack1 = ethernet / ip / udp / bootp / dhcp
+#         # send ack
+#         sendp(of_pack1)
+#
+#     Index += 1
+
+
+class DHCPHandler:
+    def __init__(self):
+        #tables and database, and etc
+        pass
+
+
+    def filter(self, packet):
+        if UDP in packet:
+            if packet[UDP].dport == Constants.dest_port:
+                return True
+        return False
+
+
+    def handle(self, packet):
+        ip_obj = IP_allocator(SUBNET_MASK, IP_ADRESS)
+        mac = packet[Ether].src
+        ip_obj = IP_allocator(SUBNET_MASK, IP_ADRESS)
+        type_message = packet[DHCP].options[0][1]  # 1-discover, 3-request
+        if self.is_discover(packet):
+            self.handle_discover(packet, mac, ip_obj)
+
+        elif self.is_request(packet):
+            self.handle_request(packet, mac, ip_obj)
+
+
+    def handle_discover(self, packet,mac,ip_obj):
+        # build offer
         ip_requested = ip_obj.offer_dictionary(mac)
         ethernet = Ether(dst=mac, src="18:60:24:8F:64:90", type=0x800)
-        ip = IP(dst=ip_requested, src="172.16.20.211")#dest_addr
+        ip = IP(dst=ip_requested, src="172.16.20.211")  # dest_addr
         udp = UDP(sport=Constants.src_port, dport=Constants.dest_port)
         bootp = BOOTP(op=2, yiaddr=ip_requested, siaddr="172.16.20.211", chaddr=mac)
-        dhcp = DHCP(options=[("message-type", "offer"), ("server_id", ip_requested), ("broadcast_address", "255.255.255.255"),
-                             ("router", "172.16.255.254"), ("subnet_mask", "255.255.0.0"), ("lease_time", str(8267) + " s")]) #router - gateway :"172.16.255.254"
+        dhcp = DHCP(
+            options=[("message-type", "offer"), ("server_id", ip_requested), ("broadcast_address", "255.255.255.255"),
+                     ("router", "172.16.255.254"), ("subnet_mask", "255.255.0.0"),
+                     ("lease_time", str(8267) + " s")])  # router - gateway :"172.16.255.254"
         of_pack = ethernet / ip / udp / bootp / dhcp
         sendp(of_pack)
-    elif type_message == 3:
-        #bulid acknolwedge
+
+
+    def handle_request(self, packet, mac, ip_obj):
+        # bulid acknolwedge
         cur_ip = packet[DHCP].options[2][1]
         alocated_dict = ip_obj.allocated_dict(cur_ip)
         ethernet = Ether(dst=mac, src="18:60:24:8F:64:90", type=0x800)
-        #save_ip=get_requested_ip(IpQueue)
+        # save_ip=get_requested_ip(IpQueue)
         ip = IP(dst=cur_ip, src="172.16.20.211")  # dest_addr
         udp = UDP(sport=Constants.src_port, dport=Constants.dest_port)
         bootp = BOOTP(op=2, yiaddr=cur_ip, siaddr="172.16.20.211", chaddr=mac)
         dhcp = DHCP(
-            options=[("message-type", "offer"), ("server_id", cur_ip), ("broadcast_address", "255.255.255.255"),
-                     ("router", "172.16.255.254"), ("subnet_mask", "255.255.0.0"),
+            options=[("message-type", "acknowledge"), ("server_id", cur_ip), ("broadcast_address", "255.255.255.255"),
+                     ("router", "172.16"
+                                ".255.254"), ("subnet_mask", "255.255.0.0"),
                      ("lease_time", str(8267) + " s")])  # router - gateway :"172.16.255.254"
         of_pack1 = ethernet / ip / udp / bootp / dhcp
         # send ack
         sendp(of_pack1)
 
-    Index += 1
+
+    def is_discover(self, packet) -> bool:
+        type_message = packet[DHCP].options[0][1]  # 1-discover, 3-request
+        if type_message == 1:
+            return True
+        else:
+            return False
+
+
+    def is_request(self, packet) -> bool:
+        type_message = packet[DHCP].options[0][1]  # 1-discover, 3-request
+        if type_message == 3:
+            return True
+        else:
+            return False
+
 
 
 def main():
 
+    handler = DHCPHandler()
     while True:
 
         print("enter to loop")
@@ -153,7 +230,7 @@ def main():
 
             print("enter to try")
             # sock.sendto(bytes("hello", "utf-8"), ip_co)
-            pa = sniff(lfilter=filter, prn=handle_packets)#expecting to recieve discover msg
+            pa = sniff(lfilter=handler.filter, prn=handler.handle)#expecting to recieve discover msg
 
         except:
             print("error")
