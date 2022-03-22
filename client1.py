@@ -60,6 +60,7 @@ class DHCP_generator:
                 ) /
                 DHCP(options=[("message-type", "discover"), "end"])
         )
+        self.dhcp_discover.show()
         return self.dhcp_discover
 
     def request_generate(self):
@@ -67,7 +68,7 @@ class DHCP_generator:
         self.dhcp_request = (
                 Ether(dst="ff:ff:ff:ff:ff:ff") /
                 IP(src="0.0.0.0", dst="255.255.255.255") /
-                UDP(sport=68, dport=67) /
+                UDP(sport=Constants.src_port, dport=Constants.dest_port) /
                 BOOTP(chaddr=mac_to_bytes(client_mac)) /
                 DHCP(options=[("message-type", "request"), ("server_id", SETTINGS["serverIP"]),
                               ("requested_addr", SETTINGS["clientIP"]), "end"]))

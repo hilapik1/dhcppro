@@ -38,11 +38,11 @@ SIZE_QUEUE = 0
 class IP_allocator:
 
     def __init__(self, subnet_mask, ip_addr):
-        self.subnet_mask=subnet_mask
-        self.ip_addr=ip_addr
+        self.subnet_mask = subnet_mask
+        self.ip_addr = ip_addr
         self.ip_bank = Queue()
-        self.offer_dict={}
-        self.allocated_dict={}
+        self.offer_dict = {}
+        self.allocated_dict = {}
         #identify static part in ip
         self.subnet_mask_parts =self.subnet_mask.split(Constants.IP_SAPARATOR)
         self.ip_addr_parts = self.ip_addr.split(Constants.IP_SAPARATOR)
@@ -54,11 +54,11 @@ class IP_allocator:
         subnet_counter = 0
         for part in ip_tupples_parts:
             if part[Constants.MASK_PART] == Constants.STATIC_MASK_PART:
-                subnet_counter +=8
+                subnet_counter += 8
             else:
                 subnet_counter += 8
                 num = int(part[Constants.MASK_PART])
-                while True:
+                while num != 0:
                     digit = num % 2
                     num = num / 2
                     if digit == 1:
@@ -147,31 +147,34 @@ def mac_to_bytes(mac_addr: str) -> bytes:
 class DHCPHandler:
     def __init__(self):
         #tables and database, and etc
-        pass
+        self.ip_obj = IP_allocator(SUBNET_MASK, IP_ADRESS)
 
 
     def filter(self, packet):
         if UDP in packet:
+            print(packet[UDP].dport)
             if packet[UDP].dport == Constants.dest_port:
                 return True
         return False
 
 
     def handle(self, packet):
-        ip_obj = IP_allocator(SUBNET_MASK, IP_ADRESS)
         mac = packet[Ether].src
-        ip_obj = IP_allocator(SUBNET_MASK, IP_ADRESS)
+        packet.show()
+        print(packet)
+        print(packet[Raw])
+        # להבין איך לקרוא את ה-DHCP
         type_message = packet[DHCP].options[0][1]  # 1-discover, 3-request
         if self.is_discover(packet):
-            self.handle_discover(packet, mac, ip_obj)
+            self.handle_discover(packet, mac)
 
         elif self.is_request(packet):
-            self.handle_request(packet, mac, ip_obj)
+            self.handle_request(packet, mac)
 
 
-    def handle_discover(self, packet,mac,ip_obj):
+    def handle_discover(self, packet,mac):
         # build offer
-        ip_requested = ip_obj.offer_dictionary(mac)
+        ip_requested = self.ip_obj.offer_dictionary(mac)
         ethernet = Ether(dst=mac, src="18:60:24:8F:64:90", type=0x800)
         ip = IP(dst=ip_requested, src="172.16.20.211")  # dest_addr
         udp = UDP(sport=Constants.src_port, dport=Constants.dest_port)
@@ -184,10 +187,10 @@ class DHCPHandler:
         sendp(of_pack)
 
 
-    def handle_request(self, packet, mac, ip_obj):
+    def handle_request(self, packet, mac):
         # bulid acknolwedge
         cur_ip = packet[DHCP].options[2][1]
-        alocated_dict = ip_obj.allocated_dict(cur_ip)
+        alocated_dict = self.ip_obj.allocated_dict(cur_ip)
         ethernet = Ether(dst=mac, src="18:60:24:8F:64:90", type=0x800)
         # save_ip=get_requested_ip(IpQueue)
         ip = IP(dst=cur_ip, src="172.16.20.211")  # dest_addr
