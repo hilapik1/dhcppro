@@ -81,6 +81,7 @@ while True:
         dhcp_discover = generator.discover_generate()
         # SETTINGS = {"serverIP": dhcp_discover[BOOTP].siaddr, "clientIP": dhcp_discover[BOOTP].yiaddr, "XID": dhcp_discover[BOOTP].xid}
         result = srp1(dhcp_discover, verbose=False)#, iface="Software Loopback Interface 1"  # expecting to recieve an offer msg
+        result.show()
         SETTINGS = {"serverIP": dhcp_discover[BOOTP].siaddr, "clientIP": result[BOOTP].yiaddr,
                     "XID": dhcp_discover[BOOTP].xid}
         for packet in result:

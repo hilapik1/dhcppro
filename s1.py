@@ -70,7 +70,7 @@ class IP_allocator:
         self.size_queue = 0
         for x in net4.hosts():
             print(x)
-            self.ip_bank = x
+            self.ip_bank.put(x)
             self.size_queue += 1
 
         # #loop om dynamic part to generate ips
@@ -83,7 +83,7 @@ class IP_allocator:
         #     else:
         #         #generateDynamic part
     def offer_dictionary(self, mac):
-        ip_requested = self.ip_bank.pop()
+        ip_requested = self.ip_bank.get()
         timeout = str(8267) + "s"
         self.offer_dict.update({mac: (ip_requested, timeout)})
         return ip_requested
@@ -162,9 +162,9 @@ class DHCPHandler:
         mac = packet[Ether].src
         packet.show()
         print(packet)
-        print(packet[Raw])
+        print(packet[BOOTP])
         # להבין איך לקרוא את ה-DHCP
-        type_message = packet[DHCP].options[0][1]  # 1-discover, 3-request
+        type_message = packet[BOOTP][DHCP].options#[0][1]  # 1-discover, 3-request
         if self.is_discover(packet):
             self.handle_discover(packet, mac)
 
