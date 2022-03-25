@@ -23,7 +23,7 @@ REQUEST_MESSAGE = "request"
 ACKNOWLEDGE_MESSSAGE = "acknowledge"
 MAX_COUNT = 40
 LAST_NUM = 26
-IP_ADRESS = "172.16.20.211"
+IP_ADRESS = "172.16.20.212"
 SUBNET_MASK = "255.255.255.0"
 Index = 1
 SIZE_QUEUE = 0
@@ -84,7 +84,7 @@ class IP_allocator:
         #         #generateDynamic part
     def offer_dictionary(self, mac):
         ip_requested = self.ip_bank.get()
-        timeout = str(8267) + "s"
+        timeout = 8267
         self.offer_dict.update({mac: (ip_requested, timeout)})
         return ip_requested
 
@@ -163,7 +163,6 @@ class DHCPHandler:
         packet.show()
         print(packet)
         print(packet[BOOTP])
-        # להבין איך לקרוא את ה-DHCP
         type_message = packet[BOOTP][DHCP].options#[0][1]  # 1-discover, 3-request
         if self.is_discover(packet):
             self.handle_discover(packet, mac)
@@ -175,16 +174,17 @@ class DHCPHandler:
     def handle_discover(self, packet,mac):
         # build offer
         ip_requested = self.ip_obj.offer_dictionary(mac)
-        ethernet = Ether(dst=mac, src="18:60:24:8F:64:90", type=0x800)
-        ip = IP(dst=ip_requested, src="172.16.20.211")  # dest_addr
-        udp = UDP(sport=Constants.src_port, dport=Constants.dest_port)
-        bootp = BOOTP(op=2, yiaddr=ip_requested, siaddr="172.16.20.211", chaddr=mac)
+        ethernet = Ether(dst="ff:ff:ff:ff:ff:ff", src="18:60:24:8F:64:90", type=0x800)
+        ip = IP(dst="255.255.255.255", src="172.16.20.211")  # dest_addr
+        udp = UDP(sport=Constants.dest_port, dport=Constants.src_port)
+        bootp = BOOTP(flags=0x8000, op=2, yiaddr=ip_requested, siaddr="172.16.20.211", chaddr="ff:ff:ff:ff:ff:ff")
         dhcp = DHCP(
             options=[("message-type", "offer"), ("server_id", ip_requested), ("broadcast_address", "255.255.255.255"),
                      ("router", "172.16.255.254"), ("subnet_mask", "255.255.0.0"),
-                     ("lease_time", str(8267) + " s")])  # router - gateway :"172.16.255.254"
+                     ("lease_time", 8267)])  # router - gateway :"172.16.255.254"
         of_pack = ethernet / ip / udp / bootp / dhcp
         sendp(of_pack)
+        print("packet was sent")
 
 
     def handle_request(self, packet, mac):
@@ -200,7 +200,7 @@ class DHCPHandler:
             options=[("message-type", "acknowledge"), ("server_id", cur_ip), ("broadcast_address", "255.255.255.255"),
                      ("router", "172.16"
                                 ".255.254"), ("subnet_mask", "255.255.0.0"),
-                     ("lease_time", str(8267) + " s")])  # router - gateway :"172.16.255.254"
+                     ("lease_time", 8267)])  # router - gateway :"172.16.255.254"
         of_pack1 = ethernet / ip / udp / bootp / dhcp
         # send ack
         sendp(of_pack1)
@@ -215,7 +215,7 @@ class DHCPHandler:
 
 
     def is_request(self, packet) -> bool:
-        type_message = packet[DHCP].options[0][1]  # 1-discover, 3-request
+        type_message = packet[BOOTP][DHCP].options # 1-discover, 3-request
         if type_message == 3:
             return True
         else:
@@ -235,7 +235,8 @@ def main():
             # sock.sendto(bytes("hello", "utf-8"), ip_co)
             pa = sniff(lfilter=handler.filter, prn=handler.handle)#expecting to recieve discover msg
 
-        except:
+        except Exception as ex:
+            print(ex)
             print("error")
             continue
 

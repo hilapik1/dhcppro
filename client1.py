@@ -56,7 +56,7 @@ class DHCP_generator:
                 UDP(sport=self.src_port, dport=self.dest_port) /
                 BOOTP(
                     chaddr=mac_to_bytes(self.mac),
-                    xid=random.randint(1, 2 ** 32 - 1),
+                    xid=777 #random.randint(1, 2 ** 32 - 1),
                 ) /
                 DHCP(options=[("message-type", "discover"), "end"])
         )
@@ -82,17 +82,19 @@ while True:
         # SETTINGS = {"serverIP": dhcp_discover[BOOTP].siaddr, "clientIP": dhcp_discover[BOOTP].yiaddr, "XID": dhcp_discover[BOOTP].xid}
         result = srp1(dhcp_discover, verbose=False)#, iface="Software Loopback Interface 1"  # expecting to recieve an offer msg
         result.show()
+        print("hi")
         SETTINGS = {"serverIP": dhcp_discover[BOOTP].siaddr, "clientIP": result[BOOTP].yiaddr,
                     "XID": dhcp_discover[BOOTP].xid}
         for packet in result:
-                if DHCP in result and result[DHCP].options[0][1] == 2:  # message type=2, that means offer message
-                         dhcp_request = generator.request_generate()
-                         print("sent request")
-                         result1 = srp1(dhcp_request, lfilter=filter)# expecting to recieve an acknowledge msg
-                         for packet in result1:
-                                 if result1[DHCP].options[0][1] == 5:
-                                         print("it works")
-                                 else:
-                                         print("error")
+            #if DHCP in result and result[DHCP].options[0][1] == 2:
+            if DHCP in result and result[BOOTP][DHCP].options == 2:  # message type=2, that means offer message
+                    dhcp_request = generator.request_generate()
+                    print("sent request")
+                    result1 = srp1(dhcp_request, lfilter=filter)# expecting to recieve an acknowledge msg
+                    for packet in result1:
+                            if result1[BOOTP][DHCP].options == 5:
+                                    print("it works")
+                            else:
+                                    print("error")
 
 
