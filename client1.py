@@ -56,7 +56,7 @@ class DHCP_generator:
                 UDP(sport=self.src_port, dport=self.dest_port) /
                 BOOTP(
                     chaddr=mac_to_bytes(self.mac),
-                    xid=777 #random.randint(1, 2 ** 32 - 1),
+                    xid=776 #random.randint(1, 2 ** 32 - 1),
                 ) /
                 DHCP(options=[("message-type", "discover"), "end"])
         )
