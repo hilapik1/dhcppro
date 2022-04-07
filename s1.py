@@ -23,7 +23,7 @@ REQUEST_MESSAGE = "request"
 ACKNOWLEDGE_MESSSAGE = "acknowledge"
 MAX_COUNT = 40
 LAST_NUM = 26
-IP_ADRESS = "172.16.20.212"
+IP_ADRESS = "192.168.10.10"
 SUBNET_MASK = "255.255.255.0"
 Index = 1
 SIZE_QUEUE = 0
@@ -55,21 +55,31 @@ class IP_allocator:
         for part in ip_tupples_parts:
             if part[Constants.MASK_PART] == Constants.STATIC_MASK_PART:
                 subnet_counter += 8
-            else:
-                subnet_counter += 8
-                num = int(part[Constants.MASK_PART])
-                while num != 0:
-                    digit = num % 2
-                    num = num / 2
-                    if digit == 1:
-                        break
-                    subnet_counter -= 1
 
-        net4 = ipaddress.ip_network(self.ip_addr + '/' + str(subnet_counter))
-        ip = "192.168.1.3"
+            else:
+                num = int(part[Constants.MASK_PART])
+                if num != 0:
+                    subnet_counter += 8
+                    while num != 0:
+                        digit = num % 2
+                        num = num / 2
+                        if digit == 1:
+                            break
+                        subnet_counter -= 1
+
+        sub_ip_parts = []
+        for part in ip_tupples_parts:
+            mask_part = int(part[Constants.MASK_PART])
+            ip_part = int(part[Constants.IP_PART])
+            res_part = mask_part & ip_part
+            sub_ip_parts.append(str(res_part))
+
+
+        net4 = ipaddress.ip_network(".".join(sub_ip_parts) + '/' + str(subnet_counter))
+
         self.size_queue = 0
         for x in net4.hosts():
-            print(x)
+            print(f"inventory ip {x}")
             self.ip_bank.put(x)
             self.size_queue += 1
 
@@ -174,12 +184,13 @@ class DHCPHandler:
     def handle_discover(self, packet,mac):
         # build offer
         ip_requested = self.ip_obj.offer_dictionary(mac)
+        print("---handle_discover")
         ethernet = Ether(dst="ff:ff:ff:ff:ff:ff", src="18:60:24:8F:64:90", type=0x800)
         ip = IP(dst="255.255.255.255", src="172.16.20.211")  # dest_addr
         udp = UDP(sport=Constants.dest_port, dport=Constants.src_port)
         bootp = BOOTP(xid=777, flags=0x8000, op=2, yiaddr=ip_requested, siaddr="172.16.20.211", chaddr="ff:ff:ff:ff:ff:ff")
         dhcp = DHCP(
-            options=[("message-type", "offer"), ("server_id", ip_requested), ("broadcast_address", "255.255.255.255"),
+            options=[("message-type", Constants.OFFER), ("server_id", ip_requested), ("broadcast_address", "255.255.255.255"),
                      ("router", "172.16.255.254"), ("subnet_mask", "255.255.0.0"),
                      ("lease_time", 8267)])  # router - gateway :"172.16.255.254"
         of_pack = ethernet / ip / udp / bootp / dhcp
@@ -187,17 +198,18 @@ class DHCPHandler:
         print("packet was sent")
 
     def handle_request(self, packet, mac):
+        print("---handle_request")
         # build acknowledge
         cur_ip = packet[DHCP].options[2][1]
         self.ip_obj.acknowledge_dictionary(cur_ip, mac)
         ethernet = Ether(dst=mac, src="18:60:24:8F:64:90", type=0x800)
         # save_ip=get_requested_ip(IpQueue)
-        ip = IP(dst=cur_ip, src="172.16.20.211")  # destination address
+        ip = IP(dst=cur_ip, src="192.168.10.10")  # destination address
         udp = UDP(sport=Constants.src_port, dport=Constants.dest_port)
-        bootp = BOOTP(op=2, yiaddr=cur_ip, siaddr="172.16.20.211", chaddr=mac)
+        bootp = BOOTP(op=2, yiaddr=cur_ip, siaddr="192.168.10.10", chaddr=mac)
         dhcp = DHCP(
-            options=[("message-type", "acknowledge"), ("server_id", cur_ip), ("broadcast_address", "255.255.255.255"),
-                     ("router", "172.16"
+            options=[("message-type", Constants.ACK), ("server_id", cur_ip), ("broadcast_address", "255.255.255.255"),
+                     ("router", "192.168"
                                 ".255.254"), ("subnet_mask", "255.255.0.0"),
                      ("lease_time", 8267)])  # router - gateway :"172.16.255.254"
         of_pack1 = ethernet / ip / udp / bootp / dhcp
@@ -207,15 +219,15 @@ class DHCPHandler:
     @staticmethod
     def is_discover(packet) -> bool:
         type_message = packet[DHCP].options[0][1]  # 1-discover, 3-request
-        if type_message == 1:
+        if type_message == Constants.DISCOVER:
             return True
         else:
             return False
 
     @staticmethod
     def is_request(packet) -> bool:
-        type_message = packet[BOOTP][DHCP].options # 1-discover, 3-request
-        if type_message == 3:
+        type_message = packet[BOOTP][DHCP].options[0][1] # 1-discover, 3-request
+        if type_message == Constants.REQUEST:
             return True
         else:
             return False
