@@ -63,6 +63,7 @@ class DHCPHandler:
 
         return False
 
+
     def handle(self, pack):
         #צריכה לעשות מחלקה נפרדת בקובץ נפרד של כל הטיפול בבקשות השונות (כמו שעשיתי בסרבר)
         message_type = pack[BOOTP][DHCP].options[0][1]
