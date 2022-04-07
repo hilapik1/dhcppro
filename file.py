@@ -14,7 +14,8 @@ class Constants:
     OFFER = 2
     REQUEST = 3
     ACK = 5
-    OP2CMD = {DISCOVER: "Discover", OFFER: "Offer", REQUEST:" Request", ACK: "Ack"}
+
+    OP2CMD = {DISCOVER: "Discover", OFFER: "Offer", REQUEST: " Request", ACK: "Ack"}
     CMD2OP = {"Discover": DISCOVER, "Offer": OFFER, "Request": REQUEST, "Ack": ACK}
     def _init_(self):
         pass
