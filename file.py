@@ -9,7 +9,7 @@ class Constants:
     STATIC_MASK_PART = "255"
     IP_SAPARATOR ="."
 
-    DISCOVER = 'discover'#1
+    DISCOVER =1#1
     OFFER = 2
     REQUEST = 3
     ACK = 5
