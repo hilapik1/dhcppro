@@ -12,7 +12,7 @@ from threading import Thread
 os.system("python file.py")
 #import constant
 
-UDP_IP = "172.16.20.211"
+UDP_IP = "192.168.10.10"
 UDP_PORT = 2024
 DISCOVER_MESSAGE = "discover"
 OFFER_MESSAGE = "offer"
@@ -96,7 +96,7 @@ def discover_generate(mac):
                 chaddr=mac_to_bytes(mac),
                 xid=777 #random.randint(1, 2 ** 32 - 1),
             ) /
-            DHCP(options=[("message-type", "discover"), "end"])
+            DHCP(options=[("message-type", Constants.DISCOVER), "end"])
     )
     dhcp_discover.show()
     return dhcp_discover
@@ -108,7 +108,7 @@ def request_generate(server_ip, client_ip, client_mac):
             IP(src="0.0.0.0", dst="255.255.255.255") /
             UDP(sport=Constants.src_port, dport=Constants.dest_port) /
             BOOTP(chaddr=client_mac)/#mac_to_bytes(client_mac)) /
-            DHCP(options=[("message-type", "request"), ("server_id", server_ip),
+            DHCP(options=[("message-type", Constants.REQUEST), ("server_id", server_ip),
                           ("requested_addr", client_ip), "end"]))
     return dhcp_request
 

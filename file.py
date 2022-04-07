@@ -9,10 +9,12 @@ class Constants:
     STATIC_MASK_PART = "255"
     IP_SAPARATOR ="."
 
-    DISCOVER = 'discover'#1
+    DISCOVER = 1
     OFFER = 2
     REQUEST = 3
     ACK = 5
+    OP2CMD = {DISCOVER: "Discover", OFFER: "Offer", REQUEST:" Request", ACK: "Ack"}
+    CMD2OP = {"Discover": DISCOVER, "Offer": OFFER, "Request": REQUEST, "Ack": ACK}
     def _init_(self):
         pass
         #NONE
