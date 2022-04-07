@@ -9,6 +9,10 @@ class Constants:
     STATIC_MASK_PART = "255"
     IP_SAPARATOR ="."
 
-    def __init__(self):
+    DISCOVER = 'discover'#1
+    OFFER = 2
+    REQUEST = 3
+    ACK = 5
+    def _init_(self):
         pass
         #NONE
