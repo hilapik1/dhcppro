@@ -94,7 +94,13 @@ class IP_allocator:
         #         #generateDynamic part
 
     def offer_dictionary(self, mac):
-        ip_requested = self.ip_bank.get()
+        if mac in self.allocated_dict.keys():
+             print("-------------------- found mac --- reoffering ------------------------")
+             ip_requested = self.allocated_dict[mac][0]
+             self.allocated_dict.pop(mac)
+        else:
+             print("@@@@@@@@@@@@@@@@@@@@@ new mac @@@ offering @@@@@@@@@@@@@@@@@@@@@@@@@")
+             ip_requested = self.ip_bank.get()
         timeout = 8267
         self.offer_dict.update({mac: (ip_requested, timeout)})
         return ip_requested
@@ -171,7 +177,7 @@ class DHCPHandler:
     def handle(self, packet):
         packet.show()
         if Ether in packet:
-            mac = packet[Ether].src
+            mac = packet[BOOTP].chaddr
         print(packet)
         print(packet[BOOTP])
         type_message = packet[BOOTP][DHCP].options#[0][1]  # 1-discover, 3-request
@@ -183,12 +189,20 @@ class DHCPHandler:
 
     def handle_discover(self, packet,mac):
         # build offer
-        ip_requested = self.ip_obj.offer_dictionary(mac)
+        #--------------------------
+        if mac in self.ip_obj.allocated_dict.keys():
+            ip_requested = self.ip_obj.offer_dictionary(mac)
+        elif mac in self.ip_obj.offer_dict.keys():
+            ip_requested = self.ip_obj.offer_dict[mac] #how to renew timeout
+        else:
+            ip_requested = self.ip_obj.offer_dictionary(mac)
+        #--------------------------
+        #ip_requested = self.ip_obj.offer_dictionary(mac)
         print("---handle_discover")
         ethernet = Ether(dst="ff:ff:ff:ff:ff:ff", src="18:60:24:8F:64:90", type=0x800)
         ip = IP(dst="255.255.255.255", src="172.16.20.211")  # dest_addr
         udp = UDP(sport=Constants.dest_port, dport=Constants.src_port)
-        bootp = BOOTP(xid=777, flags=0x8000, op=2, yiaddr=ip_requested, siaddr="172.16.20.211", chaddr="ff:ff:ff:ff:ff:ff")
+        bootp = BOOTP(xid=packet[BOOTP].xid, flags=0x8000, op=2, yiaddr=ip_requested, siaddr="172.16.20.211", chaddr="ff:ff:ff:ff:ff:ff")
         dhcp = DHCP(
             options=[("message-type", Constants.OFFER), ("server_id", ip_requested), ("broadcast_address", "255.255.255.255"),
                      ("router", "172.16.255.254"), ("subnet_mask", "255.255.0.0"),
@@ -200,8 +214,14 @@ class DHCPHandler:
     def handle_request(self, packet, mac):
         print("---handle_request")
         # build acknowledge
-        cur_ip = packet[DHCP].options[2][1]
-        self.ip_obj.acknowledge_dictionary(cur_ip, mac)
+        #cur_ip = packet[DHCP].options[2][1] ?
+        if mac in self.ip_obj.offer_dict.keys():
+            cur_ip = self.ip_obj.offer_dict[mac][0]
+            self.ip_obj.offer_dict.pop(mac)
+            self.ip_obj.acknowledge_dictionary(cur_ip, mac)
+        else:
+            print("error - need to send NAK message")
+            return
         ethernet = Ether(dst=mac, src="18:60:24:8F:64:90", type=0x800)
         # save_ip=get_requested_ip(IpQueue)
         ip = IP(dst=cur_ip, src="192.168.10.10")  # destination address
