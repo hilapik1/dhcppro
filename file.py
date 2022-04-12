@@ -13,6 +13,14 @@ class Constants:
     OFFER = 2
     REQUEST = 3
     ACK = 5
+
+    LEASE_TIME = 10
+
+    MAC_ADDRESS_LENGTH = 17
+
+    OP2CMD = {DISCOVER: "Discover", OFFER: "Offer", REQUEST:  "Request", ACK: "Ack"}
+    CMD2OP = {"Discover": DISCOVER, "Offer": OFFER, "Request": REQUEST, "Ack": ACK}
+
     def _init_(self):
         pass
         #NONE

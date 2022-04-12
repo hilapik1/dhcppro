@@ -300,6 +300,7 @@ class DHCPHandler:
         else:
             logging.warning(f"TODO: error - need to send NAK message to {self.prettify(mac)}")
             return
+
         ethernet = Ether(dst=self.prettify(mac), src="18:60:24:8F:64:90", type=0x800)
         # save_ip=get_requested_ip(IpQueue)
         ip = IP(dst=cur_ip, src="192.168.10.10")  # destination address
