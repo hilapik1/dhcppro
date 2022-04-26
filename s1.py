@@ -46,7 +46,8 @@ class IP_allocator:
         self.subnet_mask_parts = self.subnet_mask.split(Constants.IP_SAPARATOR)
         self.ip_addr_parts = self.ip_addr.split(Constants.IP_SAPARATOR)
 
-        # ip_tupples_parts = []
+        # ip_
+        # upples_parts = []
         # for i in range(0, len(self.subnet_mask_parts))]:
         #    ip_tupples_parts.append((self.subnet_mask_parts[i], self.ip_addr_parts[i]))
         ip_tupples_parts = [(self.subnet_mask_parts[i], self.ip_addr_parts[i]) for i in range(0, len(self.subnet_mask_parts))]
@@ -100,6 +101,7 @@ class IP_allocator:
         else:
              logging.debug("@@@@@@@@@@@@@@@@@@@@@ new mac @@@ offering @@@@@@@@@@@@@@@@@@@@@@@@@")
              ip_requested = self.ip_bank.get()
+             logging.info(f"!!!!!!!!!!!!! the number of ip addresses that was left: {self.ip_bank.qsize()} !!!!!!!!!!!!!!!!!!!")
 
         timeout = Constants.LEASE_TIME
         now = datetime.now()
@@ -115,7 +117,7 @@ class IP_allocator:
 
     def add_2_bank(self, ip):
         self.ip_bank.put(ip)
-
+        logging.info(f"!!!!!!!!!!!!! the number of ip addresses that was left: {self.ip_bank.qsize()} !!!!!!!!!!!!!!!!!!!")
 
 # def filter(packet):
 #     if UDP in packet:
@@ -204,6 +206,7 @@ class LeaseTimeHandler:
             for mac in self.__offer_dict__.keys():
                 self.__check_lease_time(curtime, mac, self.__offer_dict__, remove_list, ip_allocator)
 
+            logging.info(f"worker: clean offer dict")
             for mac in remove_list:
                 self.__offer_dict__.pop(mac)
 
@@ -269,12 +272,12 @@ class DHCPHandler:
         # build offer
         #--------------------------
         if mac in self.leasetime_handler.getOfferDict().keys():
-            ip_requested = self.ip_allocator.offer_dict[mac]  # how to renew timeout
+            ip_requested = self.leasetime_handler.getOfferDict()[mac][0]  # how to renew timeout
         else:
             ip_requested = self.ip_allocator.offer_dictionary(mac, self.leasetime_handler.getAllocatedDict(), self.leasetime_handler.getOfferDict())
         #--------------------------
         #ip_requested = self.ip_obj.offer_dictionary(mac)
-        logging.debug("---handle_discover")
+        logging.info(f"---handle_discover - ip = {ip_requested}")
         ethernet = Ether(dst="ff:ff:ff:ff:ff:ff", src="18:60:24:8F:64:90", type=0x800)
         ip = IP(dst="255.255.255.255", src="172.16.20.211")  # dest_addr
         udp = UDP(sport=Constants.dest_port, dport=Constants.src_port)
