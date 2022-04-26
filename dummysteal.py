@@ -31,10 +31,19 @@ def discover_generate(mac):
 def main():
     logging.basicConfig(format='%(created)f [%(levelname)s] - %(threadName)s - %(message)s')
     logging.getLogger().setLevel(logging.INFO)
-    client_mac = "40:B0:34:1D:AB:65"#"01:02:03:04:05:06"
+    base_str = "40:B0:34:1D:AB:"
     while True:
-        dhcp_discover = discover_generate(client_mac)
-        sendp(dhcp_discover)
+        for i in range(1, 256):
+            # 9
+            # A B C D E F-15
+            hex_num = hex(i)[2:].upper()
+            if i<= 15:
+                hex_num = "0"+hex_num
+            print(hex_num)
+            new_mac = base_str+hex_num
+            print(new_mac +"mac")
+            dhcp_discover = discover_generate(new_mac) #start_str --> client mac
+            sendp(dhcp_discover)
 
 if __name__=="__main__":
     main()
