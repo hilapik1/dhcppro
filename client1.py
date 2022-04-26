@@ -59,9 +59,10 @@ class DHCPHandler:
         elif message_type == Constants.ACK:
             lease_time = pack[BOOTP][DHCP].options[5][1]
             self.lease_time_worker.init_last_time(lease_time)
-            self.client_info.dict.remove(pack[BOOTP].xid)
+            self.client_info.dict.pop(pack[BOOTP].xid)
             #handle_ack()
             logging.debug("ACK WAS RECIEVED")
+
 
 
 '''
@@ -118,7 +119,7 @@ class ClientLeaseTimeHandler:
         while True:
             logging.info(f"state = {self.state}")
             if self.state != ClientLeaseTimeHandler.INIT:
-                #check lease time:
+                    #check lease time:
                 curtime = datetime.now()
                 if (curtime - self.last_ack_time).total_seconds() > self.lease_time:
                     self.state = ClientLeaseTimeHandler.EXPIRED_TIME
