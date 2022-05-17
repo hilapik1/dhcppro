@@ -14,6 +14,8 @@ from file import Constants
 from queue import Queue
 from datetime import datetime, timedelta
 import logging
+import mysql.connector
+from mysql.connector import Error
 
 MAX_MSG_LENGTH = 1024
 UDP_IP = "192.168.31.24"
@@ -34,6 +36,56 @@ SIZE_QUEUE = 0
 # server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 # server_socket.bind((UDP_IP, UDP_PORT))
 # #server_socket.listen()
+
+class DBHandler:
+    def __init__(self, host, user, password, database):
+        self.host=host
+        self.user=user
+        self.password=password
+        self.database=database
+        self.connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password)# host='localhost', user="root", password='cyber'
+        self.initialize()
+
+    def initialize(self):
+        mycursor = self.connection.cursor()
+        mycursor.execute("SHOW DATABASES")
+        if not 'dhcppro' in mycursor:
+            # create database and tables
+            mycursor = self.connection.cursor()
+            mycursor.execute("CREATE DATABASE dhcppro")
+            mycursor = self.connection.cursor()
+            #mycursor.execute("CREATE TABLE `dhcppro`.`new_table`(`id` INT NOT NULL, `mac_address` VARCHAR(45) NULL, PRIMARY KEY(`id`));")
+            #CREATE DISCOVER TABLE
+            mycursor.execute("CREATE TABLE `dhcppro`.`discovertable`(`mac_address` VARCHAR(17) NOT NULL,`id` INT NOT NULL,`time_arrivel` DATETIME NULL, `count` INT NULL,`black_list` TINYINT NULL, UNIQUE INDEX `mac_address_UNIQUE`(`mac_address` ASC) VISIBLE, UNIQUE INDEX `id_UNIQUE`(`id` ASC) VISIBLE, PRIMARY KEY(`mac_address`, `id`));")
+
+        #reinitialize connector directly to specific db
+        self.connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password, database=self.database)
+
+
+    def insert(self, ):
+        pass
+
+    def select(self):
+        pass
+
+        # mycursor = connection.cursor()
+        # mycursor.execute("SELECT * FROM dhcppro.customers")
+        # myresult = mycursor.fetchall()
+        #
+        # for x in myresult:
+        #     print(x)
+
+
+        # if connection.is_connected():
+        #     db_Info = connection.get_server_info()
+        #     print("Connected to MySQL Server version ", db_Info)
+        #     cursor = connection.cursor()
+        #     cursor.execute("select database();")
+        #     record = cursor.fetchone()
+        #     print("You're connected to database: ", record)
+
+    except Error as e:
+        print("Error while connecting to MySQL", e)
 
 
 class IP_allocator:
@@ -352,6 +404,7 @@ def main():
     logging.basicConfig(format='%(created)f [%(levelname)s] - %(threadName)s - %(message)s')
     logging.getLogger().setLevel(logging.INFO)
 
+    db_handler = DBHandler('localhost', "root", 'cyber', 'dhcppro')
     handler = DHCPHandler()
     while True:
 
