@@ -84,6 +84,7 @@ class DBHandler:
         #     record = cursor.fetchone()
         #     print("You're connected to database: ", record)
 
+
     except Error as e:
         print("Error while connecting to MySQL", e)
 
