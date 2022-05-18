@@ -37,32 +37,67 @@ SIZE_QUEUE = 0
 # server_socket.bind((UDP_IP, UDP_PORT))
 # #server_socket.listen()
 
+class Analyse:
+
+    def __init__(self):
+        self.mac_address = None
+
+
+    #first method, des parse:
+    #input: an discover packet
+    #output: an discover object in order to insert the details to the discover table
+
+
+    #second method, des analyse_the_table:
+    #if you are not under attack (regular state) :
+        #if count >=1, send offer
+        #return true
+    #else if you are under attack (attack state) :
+        # if count>=2 and black list =false, send offer
+        # if request was recieved -> this is not an intruder
+        #   *create a delete function that will remove this user from the discover table
+        #   return true
+        #else if discover message was recieved -> this is an attacker
+        #   *update the black list to be true
+        #   return false
+        #else if count>=2 and black list=true
+        #return false
+    pass
+
+
 class DBHandler:
     def __init__(self, host, user, password, database):
         self.host=host
         self.user=user
         self.password=password
         self.database=database
-        self.connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password)# host='localhost', user="root", password='cyber'
+        self.connection = None
         self.initialize()
 
     def initialize(self):
-        mycursor = self.connection.cursor()
-        mycursor.execute("SHOW DATABASES")
-        if not 'dhcppro' in mycursor:
+        self.connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password)# host='localhost', user="root", password='cyber'
+        my_cursor = self.connection.cursor()
+        my_cursor.execute("SHOW DATABASES")
+        if not 'dhcppro' in my_cursor:
             # create database and tables
-            mycursor = self.connection.cursor()
-            mycursor.execute("CREATE DATABASE dhcppro")
-            mycursor = self.connection.cursor()
+            my_cursor = self.connection.cursor()
+            my_cursor.execute("CREATE DATABASE dhcppro")
+            my_cursor = self.connection.cursor()
             #mycursor.execute("CREATE TABLE `dhcppro`.`new_table`(`id` INT NOT NULL, `mac_address` VARCHAR(45) NULL, PRIMARY KEY(`id`));")
             #CREATE DISCOVER TABLE
-            mycursor.execute("CREATE TABLE `dhcppro`.`discovertable`(`mac_address` VARCHAR(17) NOT NULL,`id` INT NOT NULL,`time_arrivel` DATETIME NULL, `count` INT NULL,`black_list` TINYINT NULL, UNIQUE INDEX `mac_address_UNIQUE`(`mac_address` ASC) VISIBLE, UNIQUE INDEX `id_UNIQUE`(`id` ASC) VISIBLE, PRIMARY KEY(`mac_address`, `id`));")
+            my_cursor.execute("CREATE TABLE `dhcppro`.`discovertable`(`mac_address` VARCHAR(17) NOT NULL"
+                             + ",`id` INT NOT NULL,`time_arrivel` DATETIME NULL, `count` INT NULL"
+                             + ",`black_list` TINYINT NULL, "
+                             + "UNIQUE INDEX `mac_address_UNIQUE`(`mac_address` ASC) VISIBLE"
+                             + ", UNIQUE INDEX `id_UNIQUE`(`id` ASC) VISIBLE, PRIMARY KEY(`mac_address`, `id`));")
 
         #reinitialize connector directly to specific db
         self.connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password, database=self.database)
 
 
-    def insert(self, ):
+
+    def ubsert(self, discover_object):
+        #insert if count=0 --> coonut=0+1=1 , update if count=1 --> count=1+1=2
         pass
 
     def select(self):
@@ -85,8 +120,7 @@ class DBHandler:
         #     print("You're connected to database: ", record)
 
 
-    except Error as e:
-        print("Error while connecting to MySQL", e)
+
 
 
 class IP_allocator:
