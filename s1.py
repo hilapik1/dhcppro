@@ -38,32 +38,107 @@ SIZE_QUEUE = 0
 # server_socket.bind((UDP_IP, UDP_PORT))
 # #server_socket.listen()
 
+class QueryMacExist:
+    MAC = 0
+    QUERY = "SELECT mac FROM dhcppro.discovertable where mac_address = "
+    def __init__(self, mac):
+        self.QUERY = QueryCountBlacklist.QUERY + mac
+
+class QueryCountBlacklist:
+    COUNT = 0
+    BLACK_LIST = 1
+    QUERY = "SELECT count ,black_list FROM dhcppro.discovertable where mac_address = "
+    def __init__(self, mac):
+        self.QUERY = QueryCountBlacklist.QUERY + mac
+
+
 class Analyse:
-
-    def __init__(self):
+    RETURN_OFFER = 1
+    DO_NOTHING = 0
+    def __init__(self, connection):
         self.mac_address = None
+        self.count = 1
+        self.black_list = False #check about the connection between the tinyint and the false/true , false -> this is not an attacker
+        self.time_arrivel=None
+        self.id=None
+        self.under_attack=False #the regular state is that you are not under an attack, if you are ->self.under_attack=True
+        self.connection = connection
+
+    # connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password, database=self.database)
+    def __parse(self, discover_packet):
+        '''
+        :param discover_packet:
+        :param connection:
+        :return: an discover object in order to insert the details to the discover table
+        '''
+        self.mac_address = discover_packet[BOOTP].chaddr
+        self.id = discover_packet[BOOTP].xid
+        current_time = datetime.now()
+        print(current_time)
+        print("******************************")
+        self.time_arrivel = current_time.strftime("%H:%M:%S")
+        print("Current Time =", self.time_arrivel)
+
+    def __is_mac_exist(self):
+        my_cursor = self.connection.cursor()
+
+        my_cursor.execute(QueryMacExist(self.mac).QUERY)
+        for x in my_cursor:
+            if x[QueryMacExist.MAC] == self.mac:
+                return True
+
+        return False
 
 
-    #first method, des parse:
-    #input: an discover packet
-    #output: an discover object in order to insert the details to the discover table
+    def __insert_mac(self):
+        # do this if this is a new mac address that doesnt exist in table!!!!!!!!!!!! need to take care about it --- very important
+        # if a discover table from the same mac address is recieved -> count++
+        my_cursor = self.connection.cursor()
+        my_cursor.execute("INSERT INTO `discovertable` (`mac_address`, `id`, `time_arrivel`, `count`, `black_list`)" +
+                          " VALUES (" + self.mac_address + "," + self.id + "," + self.time_arrivel + "," + self.count + "," + self.black_list + ");")
+        # INSERT INTO `dhcppro`.`discovertable` (`mac_address`, `id`, `time_arrivel`, `count`, `black_list`) VALUES ('\"AA:BB:CC:DD:FF', '309', '12:56:45', '0', 'false');
 
-
-    #second method, des analyse_the_table:
-    #if you are not under attack (regular state) :
-        #if count >=1, send offer
-        #return true
-    #else if you are under attack (attack state) :
+    def __update_mac(self):
+        if self.under_attack == False:  # if you are not under attack (regular state) :
+            # if the mac is exist we want to check if count>=1
+            my_cursor = self.connection.cursor()
+            my_cursor.execute("SELECT count FROM `discovertable` WHERE `discovertable`.mac_adddress = " + mac + " ")
+            if len(my_cursor) >= 1:  # mac address exist
+                return True
+                # now we need to send the offer message
+            else:
+                print("mac address does not exist in the table")
+        else:  # if you are under attack (attack state) :
+            my_cursor = self.connection.cursor()
+            my_cursor.execute(QueryCountBlacklist(self.mac).QUERY)
+            for x in my_cursor:
+                count = x[QueryCountBlacklist.COUNT]
+                black_list = x[QueryCountBlacklist.BLACK_LIST]
+                if count >= 1:
+                    if black_list == False:
+                        return RETURN_OFFER  # true
+                        # now we need to send the offer message
+                    else:
+                        return DO_NOTHING  # false
+                        print("there is an attack")
         # if count>=2 and black list =false, send offer
         # if request was recieved -> this is not an intruder
         #   *create a delete function that will remove this user from the discover table
         #   return true
-        #else if discover message was recieved -> this is an attacker
+        # else if discover message was recieved -> this is an attacker
         #   *update the black list to be true
         #   return false
-        #else if count>=2 and black list=true
-        #return false
-    pass
+        # else if count>=2 and black list=true
+        # return false
+
+    def analyse_discover(self, discover_packet):
+        self.parse(discover_packet)
+        if not self.is_mac_exist():
+            return self.insert_mac()
+        else:
+            return self.update_mac()
+
+#* first time... till n__nice_time:(2 times) send offer... later mark as black_list
 
 
 class DBHandler:
