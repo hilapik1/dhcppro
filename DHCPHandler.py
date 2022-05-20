@@ -9,7 +9,6 @@ from s1 import LeaseTimeHandler
 IP_ADRESS = "192.168.10.10"
 SUBNET_MASK = "255.255.255.0"
 
-
 class DHCPHandler:
     def __init__(self, analyser):
         #tables and database, and etc
