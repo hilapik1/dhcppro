@@ -166,7 +166,6 @@ class Analyse:
 
 #* first time... till n__nice_time:(2 times) send offer... later mark as black_list
 
-
 class IP_allocator:
 
     def __init__(self, subnet_mask, ip_addr):
