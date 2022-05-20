@@ -14,8 +14,7 @@ from file import Constants
 from queue import Queue
 from datetime import datetime, timedelta
 import logging
-import mysql.connector
-from mysql.connector import Error
+from DBHandler import DBHandler
 
 MAX_MSG_LENGTH = 1024
 UDP_IP = "192.168.31.24"
@@ -53,16 +52,16 @@ class QueryCountBlacklist:
 
 
 class Analyse:
-    RETURN_OFFER = 1
-    DO_NOTHING = 0
-    def __init__(self, connection):
+    RETURN_OFFER = True
+    DO_NOTHING = False
+    def __init__(self, db_handler):
         self.mac_address = None
         self.count = 1
         self.black_list = False #check about the connection between the tinyint and the false/true , false -> this is not an attacker
         self.time_arrivel=None
         self.id=None
         self.under_attack=False #the regular state is that you are not under an attack, if you are ->self.under_attack=True
-        self.connection = connection
+        self.db_handler = db_handler
 
     # connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password, database=self.database)
     def __parse(self, discover_packet):
@@ -79,48 +78,71 @@ class Analyse:
         self.time_arrivel = current_time.strftime("%H:%M:%S")
         print("Current Time =", self.time_arrivel)
 
-    def __is_mac_exist(self):
-        my_cursor = self.connection.cursor()
-
-        my_cursor.execute(QueryMacExist(self.mac).QUERY)
+    def is_mac_exist(self):
+        my_cursor = self.db_handler.get_cursor()
+        my_cursor.execute(QueryMacExist(self.mac_address).QUERY)
         for x in my_cursor:
-            if x[QueryMacExist.MAC] == self.mac:
+            if x[QueryMacExist.MAC] == self.mac_address:
                 return True
-
         return False
 
 
-    def __insert_mac(self):
+    def insert_mac(self,discover_packet):
         # do this if this is a new mac address that doesnt exist in table!!!!!!!!!!!! need to take care about it --- very important
         # if a discover table from the same mac address is recieved -> count++
-        my_cursor = self.connection.cursor()
+        my_cursor = self.db_handler.get_cursor()
         my_cursor.execute("INSERT INTO `discovertable` (`mac_address`, `id`, `time_arrivel`, `count`, `black_list`)" +
                           " VALUES (" + self.mac_address + "," + self.id + "," + self.time_arrivel + "," + self.count + "," + self.black_list + ");")
         # INSERT INTO `dhcppro`.`discovertable` (`mac_address`, `id`, `time_arrivel`, `count`, `black_list`) VALUES ('\"AA:BB:CC:DD:FF', '309', '12:56:45', '0', 'false');
+        if self.response_to_two_differ_states()==Analyse.RETURN_OFFER:
+            #send offer
+            self.dhcp_handler.handle(discover_packet)
+        else:
+            print("do nothing")
 
-    def __update_mac(self):
+    def update_mac(self,discover_packet):
+        my_cursor = self.db_handler.get_cursor()
+        self.count += 1
+        my_cursor.execute("INSERT INTO `discovertable` (`mac_address`, `id`, `time_arrivel`, `count`, `black_list`)" +
+                          " VALUES (" + self.mac_address + "," + self.id + "," + self.time_arrivel + "," + self.count + "," + self.black_list + ");")
+        if self.response_to_two_differ_states()==Analyse.RETURN_OFFER:
+            #send offer
+            self.dhcp_handler.handle(discover_packet)
+        else:
+            print("do nothing")
+        #---------------------------------------------------------------------------------------
+
+    def response_to_two_differ_states(self):
+        # first time... till n__nice_time:(2 times) send offer... later mark as black_list
         if self.under_attack == False:  # if you are not under attack (regular state) :
             # if the mac is exist we want to check if count>=1
-            my_cursor = self.connection.cursor()
-            my_cursor.execute("SELECT count FROM `discovertable` WHERE `discovertable`.mac_adddress = " + mac + " ")
-            if len(my_cursor) >= 1:  # mac address exist
+            my_cursor = self.db_handler.get_cursor()
+            my_cursor.execute("SELECT count FROM `discovertable` WHERE `discovertable`.mac_adddress = " + self.mac_address)
+            len = len(my_cursor)
+            if len >= 1:  # mac address exist
                 return True
                 # now we need to send the offer message
-            else:
-                print("mac address does not exist in the table")
+
         else:  # if you are under attack (attack state) :
-            my_cursor = self.connection.cursor()
-            my_cursor.execute(QueryCountBlacklist(self.mac).QUERY)
+            my_cursor = self.db_handler.get_cursor()
+            my_cursor.execute(QueryCountBlacklist(self.mac_address).QUERY)
             for x in my_cursor:
                 count = x[QueryCountBlacklist.COUNT]
                 black_list = x[QueryCountBlacklist.BLACK_LIST]
-                if count >= 1:
+                if count <=2:
                     if black_list == False:
-                        return RETURN_OFFER  # true
+                        return Analyse.RETURN_OFFER  # true
                         # now we need to send the offer message
-                    else:
-                        return DO_NOTHING  # false
-                        print("there is an attack")
+                    # else:
+                    #     return DO_NOTHING  # false
+                    #     print("there is an attack")
+
+                else:
+                    my_cursor = self.db_handler.get_cursor()
+                    my_cursor.execute("UPDATE 'discovertable' SET black_list = 1 WHERE mac_address = "+self.mac_address) #black_list=true
+                    return Analyse.DO_NOTHING
+
+
         # if count>=2 and black list =false, send offer
         # if request was recieved -> this is not an intruder
         #   *create a delete function that will remove this user from the discover table
@@ -130,70 +152,20 @@ class Analyse:
         #   return false
         # else if count>=2 and black list=true
         # return false
+    def delete_from_table(self):
+        my_cursor = self.db_handler.get_cursor()
+        my_cursor.execute("DELETE * FROM 'discovertable' WHERE mac_address = "+self.mac_address)
 
     def analyse_discover(self, discover_packet):
         self.parse(discover_packet)
         if not self.is_mac_exist():
-            return self.insert_mac()
+            return self.insert_mac(discover_packet)
         else:
-            return self.update_mac()
+            return self.update_mac(discover_packet)
 
 #* first time... till n__nice_time:(2 times) send offer... later mark as black_list
 
 
-class DBHandler:
-    def __init__(self, host, user, password, database):
-        self.host=host
-        self.user=user
-        self.password=password
-        self.database=database
-        self.connection = None
-        self.initialize()
-
-    def initialize(self):
-        self.connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password)# host='localhost', user="root", password='cyber'
-        my_cursor = self.connection.cursor()
-        my_cursor.execute("SHOW DATABASES")
-        if not 'dhcppro' in my_cursor:
-            # create database and tables
-            my_cursor = self.connection.cursor()
-            my_cursor.execute("CREATE DATABASE dhcppro")
-            my_cursor = self.connection.cursor()
-            #mycursor.execute("CREATE TABLE `dhcppro`.`new_table`(`id` INT NOT NULL, `mac_address` VARCHAR(45) NULL, PRIMARY KEY(`id`));")
-            #CREATE DISCOVER TABLE
-            my_cursor.execute("CREATE TABLE `dhcppro`.`discovertable`(`mac_address` VARCHAR(17) NOT NULL"
-                             + ",`id` INT NOT NULL,`time_arrivel` DATETIME NULL, `count` INT NULL"
-                             + ",`black_list` TINYINT NULL, "
-                             + "UNIQUE INDEX `mac_address_UNIQUE`(`mac_address` ASC) VISIBLE"
-                             + ", UNIQUE INDEX `id_UNIQUE`(`id` ASC) VISIBLE, PRIMARY KEY(`mac_address`, `id`));")
-
-        #reinitialize connector directly to specific db
-        self.connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password, database=self.database)
-
-
-
-    def ubsert(self, discover_object):
-        #insert if count=0 --> coonut=0+1=1 , update if count=1 --> count=1+1=2
-        pass
-
-    def select(self):
-        pass
-
-        # mycursor = connection.cursor()
-        # mycursor.execute("SELECT * FROM dhcppro.customers")
-        # myresult = mycursor.fetchall()
-        #
-        # for x in myresult:
-        #     print(x)
-
-
-        # if connection.is_connected():
-        #     db_Info = connection.get_server_info()
-        #     print("Connected to MySQL Server version ", db_Info)
-        #     cursor = connection.cursor()
-        #     cursor.execute("select database();")
-        #     record = cursor.fetchone()
-        #     print("You're connected to database: ", record)
 
 
 
@@ -401,12 +373,13 @@ class LeaseTimeHandler:
 
 
 class DHCPHandler:
-    def __init__(self):
+    def __init__(self, analyser):
         #tables and database, and etc
         self.ip_allocator = IP_allocator(SUBNET_MASK, IP_ADRESS)
         self.leasetime_handler = LeaseTimeHandler()
         self.lease_thread = Thread(target=self.leasetime_handler.worker, args=(self.ip_allocator,))
         self.lease_thread.start()
+        self.analyser=analyser
 
     def filter(self, packet):
         if UDP in packet:
@@ -516,7 +489,8 @@ def main():
     logging.getLogger().setLevel(logging.INFO)
 
     db_handler = DBHandler('localhost', "root", 'cyber', 'dhcppro')
-    handler = DHCPHandler()
+    analyser = Analyse(db_handler)
+    handler = DHCPHandler(analyser)
     while True:
 
         logging.debug("enter to loop")
