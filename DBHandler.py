@@ -32,7 +32,7 @@ class DBHandler:
                               + ",`id` INT NOT NULL,`time_arrivel` DATETIME NULL, `count` INT NULL"
                               + ",`black_list` TINYINT NULL, "
                               + "UNIQUE INDEX `mac_address_UNIQUE`(`mac_address` ASC) VISIBLE"
-                              + ", UNIQUE INDEX `id_UNIQUE`(`id` ASC) VISIBLE, PRIMARY KEY(`mac_address`, `id`));")
+                              + ", UNIQUE INDEX `id_UNIQUE`(`id` ASC) VISIBLE, PRIMARY KEY(`id`));")
 
         # reinitialize connector directly to specific db
         self.connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password,

@@ -2,13 +2,27 @@ from scapy.all import *
 from scapy.layers.dhcp import DHCP, BOOTP
 from scapy.layers.inet import UDP, IP
 from scapy.layers.l2 import Ether
-from s1 import QueryMacExist
-from s1 import QueryCountBlacklist
+
+class QueryMacExist:
+    MAC = 0
+    QUERY = "SELECT mac_address FROM dhcppro.discovertable where mac_address = "
+    def __init__(self, mac):
+        self.QUERY = QueryCountBlacklist.QUERY + "'" + mac + "'"
+
+class QueryCountBlacklist:
+    COUNT = 0
+    BLACK_LIST = 1
+    QUERY = "SELECT count ,black_list FROM dhcppro.discovertable where mac_address = "
+    def __init__(self, mac):
+        self.QUERY = QueryCountBlacklist.QUERY + mac
+
+
 
 
 class Analyse:
     RETURN_OFFER = True
     DO_NOTHING = False
+    RETURN_REQUEST= True
 
     def __init__(self, db_handler):
         self.mac_address = None
@@ -16,8 +30,9 @@ class Analyse:
         self.black_list = False  # check about the connection between the tinyint and the false/true , false -> this is not an attacker
         self.time_arrivel = None
         self.id = None
-        self.under_attack = False  # the regular state is that you are not under an attack, if you are ->self.under_attack=True
+        self.under_attack = True  # the regular state is that you are not under an attack, if you are ->self.under_attack=True
         self.db_handler = db_handler
+
 
     # connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password, database=self.database)
     def __parse(self, discover_packet):
@@ -26,13 +41,24 @@ class Analyse:
         :param connection:
         :return: an discover object in order to insert the details to the discover table
         '''
-        self.mac_address = discover_packet[BOOTP].chaddr
+        self.mac_address = self.bytes_to_str(discover_packet[BOOTP].chaddr)
         self.id = discover_packet[BOOTP].xid
         current_time = datetime.now()
         print(current_time)
         print("******************************")
-        self.time_arrivel = current_time.strftime("%H:%M:%S")
+        #self.time_arrivel = current_time.strftime("%H:%M:%S")
+        self.time_arrivel = current_time
         print("Current Time =", self.time_arrivel)
+
+
+    def bytes_to_str(self, mac_addr: bytes)-> str:
+        mac_s = mac_addr[:6].hex()
+        mac_addr = mac_s[:2]
+        for i in range(2, len(mac_s), 2):
+            mac_addr += ":"
+            mac_addr += mac_s[i:i+2]
+        return mac_addr
+
 
     def is_mac_exist(self):
         my_cursor = self.db_handler.get_cursor()
@@ -46,16 +72,20 @@ class Analyse:
         # do this if this is a new mac address that doesnt exist in table!!!!!!!!!!!! need to take care about it --- very important
         # if a discover table from the same mac address is recieved -> count++
         my_cursor = self.db_handler.get_cursor()
-        my_cursor.execute("INSERT INTO `discovertable` (`mac_address`, `id`, `time_arrivel`, `count`, `black_list`)" +
-                          " VALUES (" + self.mac_address + "," + self.id + "," + self.time_arrivel + "," + self.count + "," + self.black_list + ");")
+
+        query = f"INSERT INTO discovertable (mac_address, id, time_arrivel, count, black_list) VALUES ('{self.mac_address}', {self.id+1} , '{self.time_arrivel}', {self.count} , {1 if self.black_list else 0});"
+        print(query)
+        query2 = "INSERT INTO dhcppro.discovertable (mac_address, id, time_arrivel, count, black_list) VALUES ('{0}', {1}, '{2}', {3}, {4});".format(self.mac_address,self.id,self.time_arrivel,self.count,1 if self.black_list else 0)
+        query3 = "INSERT INTO dhcppro.discovertable (mac_address, id, time_arrivel, count, black_list) VALUES ('" + self.mac_address + "', " + str(self.id) + ", '" + self.time_arrivel.__str__() + "', " + str(self.count) + ", " +str(1 if self.black_list else 0)
+        my_cursor.execute(query)
         # INSERT INTO `dhcppro`.`discovertable` (`mac_address`, `id`, `time_arrivel`, `count`, `black_list`) VALUES ('\"AA:BB:CC:DD:FF', '309', '12:56:45', '0', 'false');
         if self.response_to_two_differ_states() == Analyse.RETURN_OFFER:
             # send offer
             # ------------------------------------------------------------------------------------|########################################dhcp_handler
-            self.dhcp_handler.handle(discover_packet)
+            return Analyse.RETURN_OFFER
 
         else:
-            print("do nothing")
+            return Analyse.DO_NOTHING
 
     def update_mac(self, discover_packet):
         my_cursor = self.db_handler.get_cursor()
@@ -64,9 +94,9 @@ class Analyse:
                           " VALUES (" + self.mac_address + "," + self.id + "," + self.time_arrivel + "," + self.count + "," + self.black_list + ");")
         if self.response_to_two_differ_states() == Analyse.RETURN_OFFER:
             # send offer
-            self.dhcp_handler.handle(discover_packet)
+            return Analyse.RETURN_OFFER
         else:
-            print("do nothing")
+            return Analyse.DO_NOTHING
         # ---------------------------------------------------------------------------------------
 
     def response_to_two_differ_states(self):
@@ -121,25 +151,25 @@ class Analyse:
         my_cursor.execute("DELETE * FROM 'discovertable' WHERE mac_address = " + self.mac_address)
 
     def analyse_discover(self, discover_packet):
-        self.parse(discover_packet)
+        self.__parse(discover_packet)
         if not self.is_mac_exist():
             return self.insert_mac(discover_packet)
         else:
             return self.update_mac(discover_packet)
 
-    def analyse_request(self,
-                        request_packet):  # $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ NEW
+    def analyse_request(self, request_packet):  # $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ NEW
         self.parse(request_packet)
         my_cursor = self.db_handler.get_cursor()
         my_cursor.execute("SELECT count FROM `discovertable` WHERE `discovertable`.mac_adddress = " + self.mac_address)
         for x in my_cursor:
             count = x[0]
             if count <= 2:
-                # send ack
-                self.dhcp_handler.handle(request_packet)
                 # delete from table
                 self.delete_from_table()
+                # send ack
+                return Analyse.RETURN_REQUEST
             else:
                 self.mark_as_black_list()
+                return Analyse.DO_NOTHING
 
 # * first time... till n__nice_time:(2 times) send offer... later mark as black_list
