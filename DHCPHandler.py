@@ -67,6 +67,7 @@ class DHCPHandler:
     def handle_request(self, packet, mac):
         logging.debug("---handle_request")
         # build acknowledge
+        self.analyser.analyse_request(packet)#$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ NEW
         #cur_ip = packet[DHCP].options[2][1] ?
         if mac in self.leasetime_handler.getOfferDict().keys():
             #to check about the mac_bytes to mac in string- how to do it
