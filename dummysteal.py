@@ -7,21 +7,25 @@ import scapy.all as scapy
 from scapy.all import Ether, IP, UDP, BOOTP, DHCP, sendp
 import random
 from file import Constants
+from MacConverter import MacConverter
 
 def mac_to_bytes(mac_addr: str) -> bytes:
     """ Converts a MAC address string to bytes.
     """
-    return int(mac_addr.replace(":", ""), 16).to_bytes(6, "big")
+    return MacConverter().str_to_bytes(mac_addr)
+
 
 def discover_generate(mac):
     #src_port=2025, dst_port=2023
+    #iface='\u200F\u200FEthernet'
     dhcp_discover = (
             Ether(dst="ff:ff:ff:ff:ff:ff") /
             IP(src="0.0.0.0", dst="255.255.255.255") /
             UDP(sport=Constants.src_port, dport=Constants.dest_port) /
             BOOTP(
                 chaddr=mac_to_bytes(mac),
-                xid=666 #random.randint(1, 2 ** 32 - 1),
+                #chaddr='40:B0:34:1D:AB:65',
+                xid=random.randint(1, 2 ** 7)#666  random.randint(1, 2 ** 32 - 1)
             ) /
             DHCP(options=[("message-type", Constants.DISCOVER), "end"])
     )
@@ -41,9 +45,9 @@ def main():
                 hex_num = "0"+hex_num
             print(hex_num)
             new_mac = base_str+hex_num
-            print(new_mac +"mac")
+            print(f"mac{new_mac}")
             dhcp_discover = discover_generate(new_mac) #start_str --> client mac
-            sendp(dhcp_discover)
+            sendp(dhcp_discover, iface=Constants.iface)
 
 if __name__=="__main__":
     main()
