@@ -29,7 +29,7 @@ class DBHandler:
             # mycursor.execute("CREATE TABLE `dhcppro`.`new_table`(`id` INT NOT NULL, `mac_address` VARCHAR(45) NULL, PRIMARY KEY(`id`));")
             # CREATE DISCOVER TABLE
             my_cursor.execute(f"CREATE TABLE {self.database}.`discovertable`(`mac_address` VARCHAR(17) NOT NULL"
-                              + ",`id` INT NOT NULL,`time_arrivel` DATETIME NULL, `count` INT NULL"
+                              + ",`id` INT NOT NULL AUTO_INCREMENT,`time_arrivel` DATETIME NULL, `count` INT NULL"
                               + ",`black_list` TINYINT NULL, "
                               + "UNIQUE INDEX `mac_address_UNIQUE`(`mac_address` ASC) VISIBLE"
                               + ", UNIQUE INDEX `id_UNIQUE`(`id` ASC) VISIBLE, PRIMARY KEY(`id`));")
@@ -44,6 +44,9 @@ class DBHandler:
 
     def get_cursor(self):
         return self.connection.cursor()
+
+    def get_connection(self):
+        return self.connection
 
     def select(self):
         pass

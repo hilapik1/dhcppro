@@ -202,7 +202,10 @@ class DHCPHandler:
         #--------------------------
         what_to_do = self.analyser.analyse_discover(packet)#when we got discover we call to analyse
         if what_to_do == Analyse.DO_NOTHING:
-            return
+            if mac in self.leasetime_handler.getOfferDict().keys():
+                self.ip_allocator.add_2_bank(self.leasetime_handler.getOfferDict()[mac])
+                self.leasetime_handler.getOfferDict().pop(mac)
+                return
 
         if mac in self.leasetime_handler.getOfferDict().keys():
             ip_requested = self.leasetime_handler.getOfferDict()[mac][0]  # how to renew timeout
