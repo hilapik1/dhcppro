@@ -5,24 +5,27 @@ from scapy.layers.l2 import Ether
 
 class QueryMacExist:
     MAC = 0
-    QUERY = "SELECT mac_address FROM dhcppro.discovertable where mac_address = "
+    COUNT = 1
+    QUERY = "SELECT mac_address, count FROM dhcppro.discovertable where mac_address = "
     def __init__(self, mac):
-        self.QUERY = QueryCountBlacklist.QUERY + "'" + mac + "'"
+        self.QUERY = QueryMacExist.QUERY + f"'{mac}'"#"'"+mac+"'"
+        print(self.QUERY)
 
 class QueryCountBlacklist:
     COUNT = 0
     BLACK_LIST = 1
     QUERY = "SELECT count ,black_list FROM dhcppro.discovertable where mac_address = "
     def __init__(self, mac):
-        self.QUERY = QueryCountBlacklist.QUERY + mac
+        self.QUERY = QueryCountBlacklist.QUERY + f"'{mac}'"
 
 
 
 
 class Analyse:
-    RETURN_OFFER = True
-    DO_NOTHING = False
-    RETURN_REQUEST= True
+    RETURN_OFFER =0# True
+    DO_NOTHING = 1#False
+    RETURN_REQUEST=2# True
+    RETURN_IP_TO_BANK=3
 
     def __init__(self, db_handler):
         self.mac_address = None
@@ -42,7 +45,6 @@ class Analyse:
         :return: an discover object in order to insert the details to the discover table
         '''
         self.mac_address = self.bytes_to_str(discover_packet[BOOTP].chaddr)
-        self.id = discover_packet[BOOTP].xid
         current_time = datetime.now()
         print(current_time)
         print("******************************")
@@ -63,21 +65,26 @@ class Analyse:
     def is_mac_exist(self):
         my_cursor = self.db_handler.get_cursor()
         my_cursor.execute(QueryMacExist(self.mac_address).QUERY)
+        print("0000000000000000000")
         for x in my_cursor:
+            print(x[QueryMacExist.MAC])
+            print(x)
             if x[QueryMacExist.MAC] == self.mac_address:
-                return True
-        return False
+                return x[QueryMacExist.COUNT] #true
+        print("0000000000000000000")
+        return 0
 
     def insert_mac(self, discover_packet):
         # do this if this is a new mac address that doesnt exist in table!!!!!!!!!!!! need to take care about it --- very important
         # if a discover table from the same mac address is recieved -> count++
         my_cursor = self.db_handler.get_cursor()
-
-        query = f"INSERT INTO discovertable (mac_address, id, time_arrivel, count, black_list) VALUES ('{self.mac_address}', {self.id+1} , '{self.time_arrivel}', {self.count} , {1 if self.black_list else 0});"
+        query = f"INSERT INTO discovertable (mac_address, time_arrivel, count, black_list) VALUES ('{self.mac_address}','{self.time_arrivel}', {self.count} , {1 if self.black_list else 0});"#
         print(query)
         query2 = "INSERT INTO dhcppro.discovertable (mac_address, id, time_arrivel, count, black_list) VALUES ('{0}', {1}, '{2}', {3}, {4});".format(self.mac_address,self.id,self.time_arrivel,self.count,1 if self.black_list else 0)
         query3 = "INSERT INTO dhcppro.discovertable (mac_address, id, time_arrivel, count, black_list) VALUES ('" + self.mac_address + "', " + str(self.id) + ", '" + self.time_arrivel.__str__() + "', " + str(self.count) + ", " +str(1 if self.black_list else 0)
         my_cursor.execute(query)
+        connection = self.db_handler.get_connection()
+        connection.commit()
         # INSERT INTO `dhcppro`.`discovertable` (`mac_address`, `id`, `time_arrivel`, `count`, `black_list`) VALUES ('\"AA:BB:CC:DD:FF', '309', '12:56:45', '0', 'false');
         if self.response_to_two_differ_states() == Analyse.RETURN_OFFER:
             # send offer
@@ -87,16 +94,20 @@ class Analyse:
         else:
             return Analyse.DO_NOTHING
 
-    def update_mac(self, discover_packet):
+    def update_mac(self, discover_packet, count):
         my_cursor = self.db_handler.get_cursor()
-        self.count += 1
-        my_cursor.execute("INSERT INTO `discovertable` (`mac_address`, `id`, `time_arrivel`, `count`, `black_list`)" +
-                          " VALUES (" + self.mac_address + "," + self.id + "," + self.time_arrivel + "," + self.count + "," + self.black_list + ");")
-        if self.response_to_two_differ_states() == Analyse.RETURN_OFFER:
-            # send offer
-            return Analyse.RETURN_OFFER
-        else:
-            return Analyse.DO_NOTHING
+        count += 1
+        my_cursor.execute(f"UPDATE discovertable SET count ={count}  WHERE mac_address = '{self.mac_address}'")
+        # my_cursor.execute("INSERT INTO `discovertable` (`mac_address`, `id`, `time_arrivel`, `count`, `black_list`)" +
+        #                   " VALUES (" + self.mac_address + "," + self.id + "," + self.time_arrivel + "," + self.count + "," + self.black_list + ");")
+        connection = self.db_handler.get_connection()
+        connection.commit()
+        return self.response_to_two_differ_states()
+        # if self.response_to_two_differ_states() == Analyse.RETURN_OFFER:
+        #     # send offer
+        #     return Analyse.RETURN_OFFER
+        # else:
+        #     return Analyse.DO_NOTHING
         # ---------------------------------------------------------------------------------------
 
     def response_to_two_differ_states(self):
@@ -127,9 +138,8 @@ class Analyse:
 
                 else:
                     my_cursor = self.db_handler.get_cursor()
-                    my_cursor.execute(
-                        "UPDATE 'discovertable' SET black_list = 1 WHERE mac_address = " + self.mac_address)  # black_list=true
-                    return Analyse.DO_NOTHING
+                    my_cursor.execute(f"UPDATE discovertable SET black_list = 1 WHERE mac_address = '{self.mac_address}'")  # black_list=true
+                    return Analyse.RETURN_IP_TO_BANK
 
         # if count>=2 and black list =false, send offer
         # if request was recieved -> this is not an intruder
@@ -152,10 +162,11 @@ class Analyse:
 
     def analyse_discover(self, discover_packet):
         self.__parse(discover_packet)
-        if not self.is_mac_exist():
+        count = self.is_mac_exist()
+        if count == 0:
             return self.insert_mac(discover_packet)
         else:
-            return self.update_mac(discover_packet)
+            return self.update_mac(discover_packet, count)
 
     def analyse_request(self, request_packet):  # $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ NEW
         self.parse(request_packet)
