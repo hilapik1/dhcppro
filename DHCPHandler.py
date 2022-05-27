@@ -173,6 +173,7 @@ class DHCPHandler:
         self.lease_thread = Thread(target=self.leasetime_handler.worker, args=(self.ip_allocator,))
         self.lease_thread.start()
         self.analyser=analyser
+        self.lease_time=0
 
     def filter(self, packet):
         if UDP in packet:
@@ -212,6 +213,7 @@ class DHCPHandler:
         else:
             ip_requested = self.ip_allocator.offer_dictionary(mac, self.leasetime_handler.getAllocatedDict(), self.leasetime_handler.getOfferDict())
         #--------------------------
+        self.lease_time=8267
         #ip_requested = self.ip_obj.offer_dictionary(mac)
         logging.info(f"---handle_discover - ip = {ip_requested}")
         ethernet = Ether(dst="ff:ff:ff:ff:ff:ff", src="18:60:24:8F:64:90", type=0x800)
@@ -221,7 +223,7 @@ class DHCPHandler:
         dhcp = DHCP(
             options=[("message-type", Constants.OFFER), ("server_id", ip_requested), ("broadcast_address", "255.255.255.255"),
                      ("router", "172.16.255.254"), ("subnet_mask", "255.255.0.0"),
-                     ("lease_time", 8267)])  # router - gateway :"172.16.255.254"
+                     ("lease_time", self.lease_time)])  # router - gateway :"172.16.255.254"
         of_pack = ethernet / ip / udp / bootp / dhcp
         sendp(of_pack)
         logging.debug("packet was sent")

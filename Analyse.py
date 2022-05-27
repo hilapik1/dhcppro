@@ -26,6 +26,7 @@ class Analyse:
     DO_NOTHING = 1#False
     RETURN_REQUEST=2# True
     RETURN_IP_TO_BANK=3
+    MARK_AS_BLACK_LIST=4
 
     def __init__(self, db_handler):
         self.mac_address = None
@@ -94,6 +95,70 @@ class Analyse:
         else:
             return Analyse.DO_NOTHING
 
+    def calculate_the_range_time(self):
+        current_time = datetime.now()
+        #print(now)
+        print("******************************")
+        #current_time = now.strftime("%H:%M:%S")
+        my_cursor = self.db_handler.get_cursor()
+        my_cursor.execute(
+            "SELECT time_arrivel FROM `discovertable` WHERE `discovertable`.mac_adddress = " + self.mac_address)
+        for x in my_cursor:
+            time_arrivel = x[0]
+        difference = (current_time-time_arrivel).total_seconds()
+        half_lease_time = self.lease_time/2
+        if difference< half_lease_time:
+            return Analyse.MARK_AS_BLACK_LIST
+        else:
+            return Analyse.DO_NOTHING
+
+#newwwwwwwwwwwww
+    def response_to_two_differ_states(self):
+        # first time... till n__nice_time:(2 times) send offer... later mark as black_list
+        if self.under_attack == False:  # if you are not under attack (regular state) :
+            # if the mac is exist we want to check if count>=1
+            my_cursor = self.db_handler.get_cursor()
+            my_cursor.execute(
+                "SELECT count FROM `discovertable` WHERE `discovertable`.mac_adddress = " + self.mac_address)
+            len = len(my_cursor)
+            if len >= 1:  # mac address exist
+                return Analyse.RETURN_OFFER  # true
+                # now we need to send the offer message
+
+        else:  # if you are under attack (attack state) :
+            my_cursor = self.db_handler.get_cursor()
+            my_cursor.execute(QueryCountBlacklist(self.mac_address).QUERY)
+            for x in my_cursor:
+                count = x[QueryCountBlacklist.COUNT]
+                black_list = x[QueryCountBlacklist.BLACK_LIST]
+                if count <= 2:
+                    #if count == 2:
+                        #result=self.calculate_the_range_time()
+                        #if result== Analyse.MARK_AS_BLACK_LIST:
+                            #self.mark_as_black_list()
+                    if black_list == 0:#false ##################################
+                            return Analyse.RETURN_OFFER  # true
+                            # now we need to send the offer message
+                        # else:
+                        #     return DO_NOTHING  # false
+                        #     print("there is an attack")
+
+                    else:
+                        my_cursor = self.db_handler.get_cursor()
+                        my_cursor.execute(f"UPDATE discovertable SET black_list = 1 WHERE mac_address = '{self.mac_address}'")  # black_list=true
+                        return Analyse.RETURN_IP_TO_BANK
+
+            # if count>=2 and black list =false, send offer
+            # if request was recieved -> this is not an intruder
+            #   *create a delete function that will remove this user from the discover table
+            #   return true
+            # else if discover message was recieved -> this is an attacker
+            #   *update the black list to be true
+            #   return false
+            # else if count>=2 and black list=true
+            # return false
+
+
     def update_mac(self, discover_packet, count):
         my_cursor = self.db_handler.get_cursor()
         count += 1
@@ -110,36 +175,36 @@ class Analyse:
         #     return Analyse.DO_NOTHING
         # ---------------------------------------------------------------------------------------
 
-    def response_to_two_differ_states(self):
-        # first time... till n__nice_time:(2 times) send offer... later mark as black_list
-        if self.under_attack == False:  # if you are not under attack (regular state) :
-            # if the mac is exist we want to check if count>=1
-            my_cursor = self.db_handler.get_cursor()
-            my_cursor.execute(
-                "SELECT count FROM `discovertable` WHERE `discovertable`.mac_adddress = " + self.mac_address)
-            len = len(my_cursor)
-            if len >= 1:  # mac address exist
-                return True
-                # now we need to send the offer message
-
-        else:  # if you are under attack (attack state) :
-            my_cursor = self.db_handler.get_cursor()
-            my_cursor.execute(QueryCountBlacklist(self.mac_address).QUERY)
-            for x in my_cursor:
-                count = x[QueryCountBlacklist.COUNT]
-                black_list = x[QueryCountBlacklist.BLACK_LIST]
-                if count <= 2:
-                    if black_list == False:
-                        return Analyse.RETURN_OFFER  # true
-                        # now we need to send the offer message
-                    # else:
-                    #     return DO_NOTHING  # false
-                    #     print("there is an attack")
-
-                else:
-                    my_cursor = self.db_handler.get_cursor()
-                    my_cursor.execute(f"UPDATE discovertable SET black_list = 1 WHERE mac_address = '{self.mac_address}'")  # black_list=true
-                    return Analyse.RETURN_IP_TO_BANK
+    # def response_to_two_differ_states(self):
+    #     # first time... till n__nice_time:(2 times) send offer... later mark as black_list
+    #     if self.under_attack == False:  # if you are not under attack (regular state) :
+    #         # if the mac is exist we want to check if count>=1
+    #         my_cursor = self.db_handler.get_cursor()
+    #         my_cursor.execute(
+    #             "SELECT count FROM `discovertable` WHERE `discovertable`.mac_adddress = " + self.mac_address)
+    #         len = len(my_cursor)
+    #         if len >= 1:  # mac address exist
+    #             return Analyse.RETURN_OFFER  # true
+    #             # now we need to send the offer message
+    #
+    #     else:  # if you are under attack (attack state) :
+    #         my_cursor = self.db_handler.get_cursor()
+    #         my_cursor.execute(QueryCountBlacklist(self.mac_address).QUERY)
+    #         for x in my_cursor:
+    #             count = x[QueryCountBlacklist.COUNT]
+    #             black_list = x[QueryCountBlacklist.BLACK_LIST]
+    #             if count <= 2:
+    #                 if black_list == 0:#false
+    #                     return Analyse.RETURN_OFFER  # true
+    #                     # now we need to send the offer message
+    #                 # else:
+    #                 #     return DO_NOTHING  # false
+    #                 #     print("there is an attack")
+    #
+    #             else:
+    #                 my_cursor = self.db_handler.get_cursor()
+    #                 my_cursor.execute(f"UPDATE discovertable SET black_list = 1 WHERE mac_address = '{self.mac_address}'")  # black_list=true
+    #                 return Analyse.RETURN_IP_TO_BANK
 
         # if count>=2 and black list =false, send offer
         # if request was recieved -> this is not an intruder
