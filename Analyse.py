@@ -8,6 +8,7 @@ from file import Constants
 from grafic import Creation
 from threading import Thread
 
+
 class QueryMacExist:
     MAC = 0
     COUNT = 1
@@ -42,13 +43,13 @@ class Analyse:
         self.under_attack = True  # the regular state is that you are not under an attack, if you are ->self.under_attack=True
         self.db_handler = db_handler
         self.lease_time=None
-        self.subnet_mask=Constants.SUBNET_MASK
+        self.subnet_mask = Constants.SUBNET_MASK
         self.expire=None
         self.ip_address=None
         self.data=[]
         self.index = 0
         self.Treeview=Creation()
-        thread = threading.Thread(target=self.Treeview.create_var)
+        thread = threading.Thread(target=self.Treeview.create_var, args=())
         #thread.setDaemon(True)
         thread.start()
 
@@ -267,6 +268,12 @@ class Analyse:
         connection = self.db_handler.get_connection()
         connection.commit()
 
+    def delete_from_ack_table(self,mac_address):
+        my_cursor = self.db_handler.get_cursor()
+        my_cursor.execute(f"DELETE FROM dhcppro.acktable WHERE mac_address = '{mac_address}';")
+        connection = self.db_handler.get_connection()
+        connection.commit()
+
     def analyse_discover(self, discover_packet):
         self.__parse(discover_packet)
         count = self.is_mac_exist()
@@ -296,7 +303,7 @@ class Analyse:
             count = x[0]
             print("problem!!!!!!!!!!!!!!!!!!")
             print(count)
-            if count <= 2:
+            if count <= 10:
                 print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
                 # delete from table
                 if self.is_mac_exist_in_ack_table() == False:
@@ -320,13 +327,15 @@ class Analyse:
         self.expire = current_time + timedelta(seconds=10)
         query=f"UPDATE acktable SET expire = '{self.expire}', time_given='{current_time}' WHERE mac_address = '{self.mac_address}';"
         self.data.append([self.index, self.mac_address, self.ip_address, self.subnet_mask, current_time, self.expire,self.lease_time])
-        print("##################PROBLEMMMMMMMMMM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print(query)
-        self.Treeview.update(self.data,self.index) #doesnt work - dont know how to do it
-        #self.Treeview.insert(self.data)  #cant do it because the item is already exist, we just want to edit it
         my_cursor.execute(query)
         connection = self.db_handler.get_connection()
         connection.commit()
+        print("##################PROBLEMMMMMMMMMM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print(query)
+        self.Treeview.insert(self.mac_address)
+        #self.Treeview.update(self.data,self.index) #doesnt work - dont know how to do it
+        #self.Treeview.insert(self.data)  #cant do it because the item is already exist, we just want to edit it
+
 
     def add_to_ack_table(self):
         my_cursor = self.db_handler.get_cursor()
@@ -336,16 +345,19 @@ class Analyse:
         print(self.subnet_mask)
         query = f"INSERT INTO dhcppro.acktable(mac_address, time_given, lease_time, ip_address, subnet_mask, expire) VALUES ('{self.mac_address}','{current_time}', {self.lease_time} , '{self.ip_address}','{self.subnet_mask}','{self.expire}');"
         #"ID", "MAC ADDRESS", "IP ADDRESS", "SUBNET MASK", "TIME GIVEN", "EXPIRE", "LEASE TIME"
-        self.index+=1
-        self.data.append([self.index, self.mac_address, self.ip_address, self.subnet_mask, current_time, self.expire, self.lease_time])
-        print("##############################")
-        self.Treeview.insert(self.data)
-        print("##############################")
-        #self.Treeview.create_striped_rows()
         print(query)
         my_cursor.execute(query)
         connection = self.db_handler.get_connection()
         connection.commit()
+        self.index+=1
+        self.data.append([self.index, self.mac_address, self.ip_address, self.subnet_mask, current_time, self.expire, self.lease_time])
+        print("##############################")
+        mac=self.mac_address
+        self.Treeview.insert(self.mac_address)
+        #self.Treeview.insert(self.mac_address)
+        print("##############################")
+        #self.Treeview.create_striped_rows()
+
 
 
 # * first time... till n__nice_time:(2 times) send offer... later mark as black_list

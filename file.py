@@ -8,7 +8,7 @@ class Constants:
     IP_PART = 1
     STATIC_MASK_PART = "255"
     IP_SAPARATOR ="."
-
+    SUBNET_MASK="255.255.255.0"
     DISCOVER =1#1
     OFFER = 2
     REQUEST = 3

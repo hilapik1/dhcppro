@@ -36,6 +36,7 @@ class DBHandler:
                               + ", UNIQUE INDEX `id_UNIQUE`(`id` ASC) VISIBLE, PRIMARY KEY(`id`));")
             print("problem")
             my_cursor = self.connection.cursor()
+            print("!!!!!!!!!!!!!!!!!!!((((((((((((((((((())))))))))))))))))))))))")
             my_cursor.execute(f"CREATE TABLE {self.database}.`acktable`(`id` INT NOT NULL AUTO_INCREMENT,`mac_address` VARCHAR(17) NOT NULL"
                               +",`time_given` DATETIME NULL, `lease_time` INT NULL, `ip_address` VARCHAR(12) NOT NULL"
                               +",`subnet_mask` VARCHAR(13) NOT NULL, `expire` DATETIME NULL, PRIMARY KEY (`id`), "

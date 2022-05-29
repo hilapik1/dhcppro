@@ -7,6 +7,7 @@ import scapy.all as scapy
 from file import Constants
 from Analyse import Analyse
 from queue import Queue
+from Analyse import Analyse
 
 IP_ADDRESS = "192.168.10.10"
 SUBNET_MASK = "255.255.255.0"
@@ -62,6 +63,10 @@ class LeaseTimeHandler:
                 self.__check_lease_time(curtime, mac, self.__allocated_dict__, remove_list, ip_allocator)
 
             for mac in remove_list:
+                #####################################
+                #delete from acktable
+                anlayse=Analyse()
+                anlayse.delete_from_ack_table(mac)
                 self.__allocated_dict__.pop(mac)
 
     def __check_lease_time(self, curtime, mac, dict, remove_list, ip_allocator):
