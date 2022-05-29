@@ -1,7 +1,12 @@
+import threading
+from datetime import timedelta, datetime
 from scapy.all import *
 from scapy.layers.dhcp import DHCP, BOOTP
 from scapy.layers.inet import UDP, IP
 from scapy.layers.l2 import Ether
+from file import Constants
+from grafic import Creation
+from threading import Thread
 
 class QueryMacExist:
     MAC = 0
@@ -36,7 +41,26 @@ class Analyse:
         self.id = None
         self.under_attack = True  # the regular state is that you are not under an attack, if you are ->self.under_attack=True
         self.db_handler = db_handler
+        self.lease_time=None
+        self.subnet_mask=Constants.SUBNET_MASK
+        self.expire=None
+        self.ip_address=None
+        self.data=[]
+        self.index = 0
+        self.Treeview=Creation()
+        thread = threading.Thread(target=self.Treeview.create_var)
+        #thread.setDaemon(True)
+        thread.start()
 
+    # def create_gui(self):
+    #     self.Treeview.design_the_table()
+    #     self.Treeview.create_Treeview_Frame()
+    #     self.Treeview.create_scrollbar()
+    #     self.Treeview.create_Treeview()
+    #     self.Treeview.configure_scrollbar()
+    #     self.Treeview.create_table()
+    #     root = self.Treeview.get_root()
+    #     root.mainloop()
 
     # connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password, database=self.database)
     def __parse(self, discover_packet):
@@ -74,6 +98,17 @@ class Analyse:
                 return x[QueryMacExist.COUNT] #true
         print("0000000000000000000")
         return 0
+
+    def is_mac_exist_in_ack_table(self):
+        my_cursor = self.db_handler.get_cursor()
+        my_cursor.execute(f"SELECT mac_address FROM dhcppro.acktable where mac_address ='{self.mac_address}';")
+        for x in my_cursor:
+            print(x[0])#x[MAC]
+            print(x)
+            if x[0] == self.mac_address:
+                return True #]COUNT
+        return False
+
 
     def insert_mac(self, discover_packet):
         # do this if this is a new mac address that doesnt exist in table!!!!!!!!!!!! need to take care about it --- very important
@@ -162,9 +197,12 @@ class Analyse:
     def update_mac(self, discover_packet, count):
         my_cursor = self.db_handler.get_cursor()
         count += 1
-        my_cursor.execute(f"UPDATE discovertable SET count ={count}  WHERE mac_address = '{self.mac_address}'")
-        # my_cursor.execute("INSERT INTO `discovertable` (`mac_address`, `id`, `time_arrivel`, `count`, `black_list`)" +
-        #                   " VALUES (" + self.mac_address + "," + self.id + "," + self.time_arrivel + "," + self.count + "," + self.black_list + ");")
+        if count<=2:
+            my_cursor.execute(f"UPDATE discovertable SET count ={count}  WHERE mac_address = '{self.mac_address}'")
+            # my_cursor.execute("INSERT INTO `discovertable` (`mac_address`, `id`, `time_arrivel`, `count`, `black_list`)" +
+            #                   " VALUES (" + self.mac_address + "," + self.id + "," + self.time_arrivel + "," + self.count + "," + self.black_list + ");")
+        else:
+            my_cursor.execute(f"UPDATE discovertable SET count ={count}, black_list=1  WHERE mac_address = '{self.mac_address}'")
         connection = self.db_handler.get_connection()
         connection.commit()
         return self.response_to_two_differ_states()
@@ -218,12 +256,16 @@ class Analyse:
 
     def mark_as_black_list(self):
         my_cursor = self.db_handler.get_cursor()
-        my_cursor.execute(
-            "UPDATE 'discovertable' SET black_list = 1 WHERE mac_address = " + self.mac_address)  # black_list=true
+        my_cursor.execute(f"UPDATE dhcppro.discovertable SET black_list = 1 WHERE mac_address = '{self.mac_address}';")  # black_list=true
+        connection = self.db_handler.get_connection()
+        connection.commit()
+
 
     def delete_from_table(self):
         my_cursor = self.db_handler.get_cursor()
-        my_cursor.execute("DELETE * FROM 'discovertable' WHERE mac_address = " + self.mac_address)
+        my_cursor.execute(f"DELETE FROM dhcppro.discovertable WHERE mac_address = '{self.mac_address}';")
+        connection = self.db_handler.get_connection()
+        connection.commit()
 
     def analyse_discover(self, discover_packet):
         self.__parse(discover_packet)
@@ -234,18 +276,76 @@ class Analyse:
             return self.update_mac(discover_packet, count)
 
     def analyse_request(self, request_packet):  # $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ NEW
-        self.parse(request_packet)
+        self.__parse(request_packet)
+        self.lease_time = Constants.LEASE_TIME
+        self.ip_address = request_packet[DHCP].options[2][1]
+        print("ip ipppppppppppppppppppppppppppppppppppppppppppppppppppiiiiiiiiiiiiiiiiiiiippppppppppppppp")
+        print(self.ip_address)
+        current_time = datetime.now()
+        print(current_time.time())
+        self.expire = datetime.now() + timedelta(seconds=10)
+        print("updated time : ")
+        print(self.expire)
         my_cursor = self.db_handler.get_cursor()
-        my_cursor.execute("SELECT count FROM `discovertable` WHERE `discovertable`.mac_adddress = " + self.mac_address)
+        print("%%%%%%%%%%%%%%%%%%%%%%%%%")
+        print(self.mac_address)
+        print(f"SELECT count FROM dhcppro.discovertable WHERE mac_address = '{self.mac_address}';")
+        my_cursor.execute(f"SELECT count FROM dhcppro.discovertable WHERE mac_address = '{self.mac_address}';")
+        print("problem!!!!!!!!!!!!!!!!!!####################################")
         for x in my_cursor:
             count = x[0]
+            print("problem!!!!!!!!!!!!!!!!!!")
+            print(count)
             if count <= 2:
+                print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
                 # delete from table
-                self.delete_from_table()
+                if self.is_mac_exist_in_ack_table() == False:
+                    print("mac is not in table$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+                    self.add_to_ack_table()
+                    print("deleteeeeeeeeee")
+                    self.delete_from_table()
+                    print("deleteeeeeeeeee")
+                else:
+                    self.update_ack_table()
                 # send ack
                 return Analyse.RETURN_REQUEST
             else:
+                print("blackkkkk listtttttttt")
                 self.mark_as_black_list()
                 return Analyse.DO_NOTHING
+
+    def update_ack_table(self):
+        my_cursor = self.db_handler.get_cursor()
+        current_time = datetime.now()
+        self.expire = current_time + timedelta(seconds=10)
+        query=f"UPDATE acktable SET expire = '{self.expire}', time_given='{current_time}' WHERE mac_address = '{self.mac_address}';"
+        self.data.append([self.index, self.mac_address, self.ip_address, self.subnet_mask, current_time, self.expire,self.lease_time])
+        print("##################PROBLEMMMMMMMMMM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print(query)
+        self.Treeview.update(self.data,self.index) #doesnt work - dont know how to do it
+        #self.Treeview.insert(self.data)  #cant do it because the item is already exist, we just want to edit it
+        my_cursor.execute(query)
+        connection = self.db_handler.get_connection()
+        connection.commit()
+
+    def add_to_ack_table(self):
+        my_cursor = self.db_handler.get_cursor()
+        current_time = datetime.now()
+        print("macccccccccccccccccccccccccc")
+        print(self.mac_address)
+        print(self.subnet_mask)
+        query = f"INSERT INTO dhcppro.acktable(mac_address, time_given, lease_time, ip_address, subnet_mask, expire) VALUES ('{self.mac_address}','{current_time}', {self.lease_time} , '{self.ip_address}','{self.subnet_mask}','{self.expire}');"
+        #"ID", "MAC ADDRESS", "IP ADDRESS", "SUBNET MASK", "TIME GIVEN", "EXPIRE", "LEASE TIME"
+        self.index+=1
+        self.data.append([self.index, self.mac_address, self.ip_address, self.subnet_mask, current_time, self.expire, self.lease_time])
+        print("##############################")
+        self.Treeview.insert(self.data)
+        print("##############################")
+        #self.Treeview.create_striped_rows()
+        print(query)
+        my_cursor.execute(query)
+        connection = self.db_handler.get_connection()
+        connection.commit()
+
 
 # * first time... till n__nice_time:(2 times) send offer... later mark as black_list

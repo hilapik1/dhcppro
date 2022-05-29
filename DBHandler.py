@@ -1,4 +1,5 @@
 import mysql.connector
+from pip._internal.utils import logging
 
 
 class DBHandler:
@@ -33,11 +34,17 @@ class DBHandler:
                               + ",`black_list` TINYINT NULL, "
                               + "UNIQUE INDEX `mac_address_UNIQUE`(`mac_address` ASC) VISIBLE"
                               + ", UNIQUE INDEX `id_UNIQUE`(`id` ASC) VISIBLE, PRIMARY KEY(`id`));")
+            print("problem")
+            my_cursor = self.connection.cursor()
+            my_cursor.execute(f"CREATE TABLE {self.database}.`acktable`(`id` INT NOT NULL AUTO_INCREMENT,`mac_address` VARCHAR(17) NOT NULL"
+                              +",`time_given` DATETIME NULL, `lease_time` INT NULL, `ip_address` VARCHAR(12) NOT NULL"
+                              +",`subnet_mask` VARCHAR(13) NOT NULL, `expire` DATETIME NULL, PRIMARY KEY (`id`), "
+                              +"UNIQUE INDEX `mac_address_UNIQUE` (`mac_address` ASC) VISIBLE"
+                              +", UNIQUE INDEX `ip_address_UNIQUE` (`ip_address` ASC) VISIBLE);")
 
         # reinitialize connector directly to specific db
         self.connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password,
                                                   database=self.database)
-
     # def ubsert(self, discover_object):
     #     #insert if count=0 --> count=0+1=1 , update if count=1 --> count=1+1=2
     #     self.analyse.analyse_discover(discover_object)

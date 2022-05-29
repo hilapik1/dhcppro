@@ -213,17 +213,17 @@ class DHCPHandler:
         else:
             ip_requested = self.ip_allocator.offer_dictionary(mac, self.leasetime_handler.getAllocatedDict(), self.leasetime_handler.getOfferDict())
         #--------------------------
-        self.lease_time=8267
+        #self.lease_time=8267
         #ip_requested = self.ip_obj.offer_dictionary(mac)
         logging.info(f"---handle_discover - ip = {ip_requested}")
         ethernet = Ether(dst="ff:ff:ff:ff:ff:ff", src="18:60:24:8F:64:90", type=0x800)
-        ip = IP(dst="255.255.255.255", src="172.16.20.211")  # dest_addr
+        ip = IP(dst="255.255.255.255", src="192.168.10.10")  # dest_addr
         udp = UDP(sport=Constants.dest_port, dport=Constants.src_port)
-        bootp = BOOTP(xid=packet[BOOTP].xid, flags=0x8000, op=2, yiaddr=ip_requested, siaddr="172.16.20.211", chaddr="ff:ff:ff:ff:ff:ff")
+        bootp = BOOTP(xid=packet[BOOTP].xid, flags=0x8000, op=2, yiaddr=ip_requested, siaddr="192.168.10.10", chaddr="ff:ff:ff:ff:ff:ff")
         dhcp = DHCP(
             options=[("message-type", Constants.OFFER), ("server_id", ip_requested), ("broadcast_address", "255.255.255.255"),
                      ("router", "172.16.255.254"), ("subnet_mask", "255.255.0.0"),
-                     ("lease_time", self.lease_time)])  # router - gateway :"172.16.255.254"
+                     ("lease_time", Constants.LEASE_TIME)])  # router - gateway :"172.16.255.254"
         of_pack = ethernet / ip / udp / bootp / dhcp
         sendp(of_pack)
         logging.debug("packet was sent")
@@ -245,6 +245,7 @@ class DHCPHandler:
             logging.warning(f"TODO: error - need to send NAK message to {self.prettify(mac)}")
             return
 
+        print(cur_ip)
         ethernet = Ether(dst=self.prettify(mac), src="18:60:24:8F:64:90", type=0x800)
         # save_ip=get_requested_ip(IpQueue)
         ip = IP(dst=cur_ip, src="192.168.10.10")  # destination address
@@ -287,4 +288,3 @@ class DHCPHandler:
             return True
         else:
             return False
-
