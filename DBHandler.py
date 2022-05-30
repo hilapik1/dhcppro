@@ -2,6 +2,48 @@ import mysql.connector
 from pip._internal.utils import logging
 
 
+class QueryMacExist:
+    MAC = 0
+    COUNT = 1
+    QUERY = "SELECT mac_address, count FROM dhcppro.discovertable where mac_address = "
+
+    def __init__(self, mac):
+        self.QUERY = QueryMacExist.QUERY + f"'{mac}'"#"'"+mac+"'"
+        print(self.QUERY)
+
+
+class QueryCountBlacklist:
+    COUNT = 0
+    BLACK_LIST = 1
+    QUERY = "SELECT count ,black_list FROM dhcppro.discovertable where mac_address = "
+
+    def __init__(self, mac):
+        self.QUERY = QueryCountBlacklist.QUERY + f"'{mac}'"
+
+
+class QueryAckTableStatus:
+    QUERY = "SELECT * FROM dhcppro.acktable"
+    ID = 0
+    MAC_ADDRESS = 1
+    TIME_GIVEN = 2
+    LEASE_TIME = 3
+    IP_ADDRESS = 4
+    SUBNET_MASK = 5
+    EXPIRE = 6
+
+    def __init__(self):
+        self.QUERY = QueryAckTableStatus.QUERY
+
+
+class InsertToDiscoverTable:
+    #f"INSERT INTO discovertable (mac_address, time_arrivel, count, black_list) VALUES ('{self.mac_address}','{self.time_arrivel}', {self.count} , {1 if self.black_list else 0});
+    QUERY="INSERT INTO discovertable (mac_address, time_arrivel, count, black_list) VALUES "#
+
+    def __init__(self, mac_address, time_arrivel, count, black_list):
+        self.QUERY = f"INSERT INTO dhcppro.discovertable (mac_address, time_arrivel, count, black_list) VALUES ('{mac_address}','{time_arrivel}', {count} , {black_list});"
+        print(self.QUERY)
+
+
 class DBHandler:
     def __init__(self, host, user, password, database):
         self.host = host
@@ -43,15 +85,27 @@ class DBHandler:
                               +"UNIQUE INDEX `mac_address_UNIQUE` (`mac_address` ASC) VISIBLE"
                               +", UNIQUE INDEX `ip_address_UNIQUE` (`ip_address` ASC) VISIBLE);")
 
-        # reinitialize connector directly to specific db
+        # reinitialize connector direcsystly to specific db
         self.connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password,
                                                   database=self.database)
+
     # def ubsert(self, discover_object):
     #     #insert if count=0 --> count=0+1=1 , update if count=1 --> count=1+1=2
     #     self.analyse.analyse_discover(discover_object)
 
+    def clean_ack_table(self):
+        # clean ack table:
+        query = "delete FROM dhcppro.acktable where true;"
+        my_cursor = self.connection.cursor()
+        my_cursor.execute(query)
+        self.connection.commit()
+
     def get_cursor(self):
         return self.connection.cursor()
+
+    def get_reconnect(self):
+        self.connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password,
+                                                  database=self.database)
 
     def get_connection(self):
         return self.connection

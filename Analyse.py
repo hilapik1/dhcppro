@@ -7,22 +7,9 @@ from scapy.layers.l2 import Ether
 from file import Constants
 from grafic import Creation
 from threading import Thread
+from DBHandler import QueryMacExist, QueryCountBlacklist, InsertToDiscoverTable
 
 
-class QueryMacExist:
-    MAC = 0
-    COUNT = 1
-    QUERY = "SELECT mac_address, count FROM dhcppro.discovertable where mac_address = "
-    def __init__(self, mac):
-        self.QUERY = QueryMacExist.QUERY + f"'{mac}'"#"'"+mac+"'"
-        print(self.QUERY)
-
-class QueryCountBlacklist:
-    COUNT = 0
-    BLACK_LIST = 1
-    QUERY = "SELECT count ,black_list FROM dhcppro.discovertable where mac_address = "
-    def __init__(self, mac):
-        self.QUERY = QueryCountBlacklist.QUERY + f"'{mac}'"
 
 
 
@@ -37,7 +24,7 @@ class Analyse:
     def __init__(self, db_handler):
         self.mac_address = None
         self.count = 1
-        self.black_list = False  # check about the connection between the tinyint and the false/true , false -> this is not an attacker
+        self.black_list_bool = False  # check about the connection between the tinyint and the false/true , false -> this is not an attacker
         self.time_arrivel = None
         self.id = None
         self.under_attack = True  # the regular state is that you are not under an attack, if you are ->self.under_attack=True
@@ -48,10 +35,10 @@ class Analyse:
         self.ip_address=None
         self.data=[]
         self.index = 0
-        self.Treeview=Creation()
-        thread = threading.Thread(target=self.Treeview.create_var, args=())
+        #self.Treeview=Creation()
+        #thread = threading.Thread(target=self.Treeview.create_var, args=())
         #thread.setDaemon(True)
-        thread.start()
+        #thread.start()
 
     # def create_gui(self):
     #     self.Treeview.design_the_table()
@@ -115,10 +102,12 @@ class Analyse:
         # do this if this is a new mac address that doesnt exist in table!!!!!!!!!!!! need to take care about it --- very important
         # if a discover table from the same mac address is recieved -> count++
         my_cursor = self.db_handler.get_cursor()
-        query = f"INSERT INTO discovertable (mac_address, time_arrivel, count, black_list) VALUES ('{self.mac_address}','{self.time_arrivel}', {self.count} , {1 if self.black_list else 0});"#
-        print(query)
-        query2 = "INSERT INTO dhcppro.discovertable (mac_address, id, time_arrivel, count, black_list) VALUES ('{0}', {1}, '{2}', {3}, {4});".format(self.mac_address,self.id,self.time_arrivel,self.count,1 if self.black_list else 0)
-        query3 = "INSERT INTO dhcppro.discovertable (mac_address, id, time_arrivel, count, black_list) VALUES ('" + self.mac_address + "', " + str(self.id) + ", '" + self.time_arrivel.__str__() + "', " + str(self.count) + ", " +str(1 if self.black_list else 0)
+        query = f"INSERT INTO dhcppro.discovertable (mac_address, time_arrivel, count, black_list) VALUES ('{self.mac_address}','{self.time_arrivel}', {self.count} , {1 if self.black_list_bool else 0});"#
+        # print(query)
+        # query2 = "INSERT INTO dhcppro.discovertable (mac_address, id, time_arrivel, count, black_list) VALUES ('{0}', {1}, '{2}', {3}, {4});".format(self.mac_address,self.id,self.time_arrivel,self.count,1 if self.black_list else 0)
+        # query3 = "INSERT INTO dhcppro.discovertable (mac_address, id, time_arrivel, count, black_list) VALUES ('" + self.mac_address + "', " + str(self.id) + ", '" + self.time_arrivel.__str__() + "', " + str(self.count) + ", " +str(1 if self.black_list else 0)
+        black_list_int=1 if self.black_list_bool else 0
+        #my_cursor.execute(InsertToDiscoverTable(self.mac_address,self.time_arrivel,self.count,1 if self.black_list_bool else 0).Query)
         my_cursor.execute(query)
         connection = self.db_handler.get_connection()
         connection.commit()
@@ -155,7 +144,7 @@ class Analyse:
             # if the mac is exist we want to check if count>=1
             my_cursor = self.db_handler.get_cursor()
             my_cursor.execute(
-                "SELECT count FROM `discovertable` WHERE `discovertable`.mac_adddress = " + self.mac_address)
+                "SELECT count FROM `discovertable` WHERE `discovertable`.mac_address = " + self.mac_address)
             len = len(my_cursor)
             if len >= 1:  # mac address exist
                 return Analyse.RETURN_OFFER  # true
@@ -332,7 +321,7 @@ class Analyse:
         connection.commit()
         print("##################PROBLEMMMMMMMMMM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         print(query)
-        self.Treeview.insert(self.mac_address)
+        #self.Treeview.insert(self.mac_address)
         #self.Treeview.update(self.data,self.index) #doesnt work - dont know how to do it
         #self.Treeview.insert(self.data)  #cant do it because the item is already exist, we just want to edit it
 
@@ -353,7 +342,7 @@ class Analyse:
         self.data.append([self.index, self.mac_address, self.ip_address, self.subnet_mask, current_time, self.expire, self.lease_time])
         print("##############################")
         mac=self.mac_address
-        self.Treeview.insert(self.mac_address)
+        #self.Treeview.insert(self.mac_address)
         #self.Treeview.insert(self.mac_address)
         print("##############################")
         #self.Treeview.create_striped_rows()

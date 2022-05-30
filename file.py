@@ -14,7 +14,7 @@ class Constants:
     REQUEST = 3
     ACK = 5
 
-    LEASE_TIME = 10
+    LEASE_TIME = 20
 
     MAC_ADDRESS_LENGTH = 17
 

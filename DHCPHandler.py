@@ -15,9 +15,10 @@ SUBNET_MASK = "255.255.255.0"
 
 
 class LeaseTimeHandler:
-    def __init__(self):
+    def __init__(self, analyser):
         self.__offer_dict__ = {}
         self.__allocated_dict__ = {}
+        self.__analyser__ = analyser
 
     def getOfferDict(self):
         return self.__offer_dict__
@@ -43,6 +44,15 @@ class LeaseTimeHandler:
     def getAllocatedMacKeys(self):
         pass
 
+    def bytes_to_str(self,mac_addr: bytes)->str:
+        mac_s = mac_addr[:6].hex()
+        mac_addr = mac_s[:2]
+        for i in range(2,len(mac_s),2):
+            mac_addr += ":"
+            mac_addr += mac_s[i:i+2]
+
+        return mac_addr
+
     def worker(self, ip_allocator):
         while True:
             logging.debug("worker iterration")
@@ -65,8 +75,7 @@ class LeaseTimeHandler:
             for mac in remove_list:
                 #####################################
                 #delete from acktable
-                anlayse=Analyse()
-                anlayse.delete_from_ack_table(mac)
+                self.__analyser__.delete_from_ack_table(self.bytes_to_str(mac))  ############################
                 self.__allocated_dict__.pop(mac)
 
     def __check_lease_time(self, curtime, mac, dict, remove_list, ip_allocator):
@@ -174,7 +183,7 @@ class DHCPHandler:
     def __init__(self, analyser):
         #tables and database, and etc
         self.ip_allocator = IP_allocator(SUBNET_MASK, IP_ADDRESS)
-        self.leasetime_handler = LeaseTimeHandler()
+        self.leasetime_handler = LeaseTimeHandler(analyser)
         self.lease_thread = Thread(target=self.leasetime_handler.worker, args=(self.ip_allocator,))
         self.lease_thread.start()
         self.analyser=analyser
