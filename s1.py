@@ -43,6 +43,7 @@ def main():
     logging.getLogger().setLevel(logging.DEBUG)
     db_handler = DBHandler('localhost', "root", 'cyber', 'dhcppro')
     db_handler.clean_ack_table()
+    db_handler.clean_discover_table()
     analyser = Analyse(db_handler)
     handler = DHCPHandler(analyser)
 

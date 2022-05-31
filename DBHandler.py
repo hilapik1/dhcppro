@@ -100,6 +100,13 @@ class DBHandler:
         my_cursor.execute(query)
         self.connection.commit()
 
+    def clean_discover_table(self):
+        # clean discover table:
+        query = "delete FROM dhcppro.discovertable where true;"
+        my_cursor = self.connection.cursor()
+        my_cursor.execute(query)
+        self.connection.commit()
+
     def get_cursor(self):
         return self.connection.cursor()
 
