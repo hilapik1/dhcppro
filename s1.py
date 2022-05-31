@@ -40,7 +40,7 @@ SIZE_QUEUE = 0
 
 def main():
     logging.basicConfig(format='%(created)f [%(levelname)s] - %(threadName)s - %(message)s')
-    logging.getLogger().setLevel(logging.INFO)
+    logging.getLogger().setLevel(logging.DEBUG)
     db_handler = DBHandler('localhost', "root", 'cyber', 'dhcppro')
     db_handler.clean_ack_table()
     analyser = Analyse(db_handler)

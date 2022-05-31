@@ -168,10 +168,16 @@ class IP_allocator:
         return ip_requested
 
     def acknowledge_dictionary(self, ip, mac, allocated_dict):
-        timeout = Constants.LEASE_TIME
-
+        #check why it remove me from allocated dict
+        timeout = Constants.LEASE_TIME*20
+        ####################################################################################### cheat remove*20
         now = datetime.now()
         allocated_dict.update({mac: (ip, timeout, now)})
+        return allocated_dict
+
+    def update_ackknowledge_lease_time(self, mac, allocated_dict):
+        now = datetime.now()
+        allocated_dict[mac] = (allocated_dict[mac][0], Constants.LEASE_TIME, now)
         return allocated_dict
 
     def add_2_bank(self, ip):
@@ -255,6 +261,12 @@ class DHCPHandler:
             cur_ip = self.leasetime_handler.getOfferDict()[mac][0]
             self.leasetime_handler.getOfferDict().pop(mac)
             self.ip_allocator.acknowledge_dictionary(cur_ip, mac, self.leasetime_handler.getAllocatedDict())
+
+        # just renew lease time
+        elif mac in self.leasetime_handler.getAllocatedDict().keys():
+            cur_ip = self.leasetime_handler.getAllocatedDict()[mac][0]
+            self.ip_allocator.update_ackknowledge_lease_time(mac, self.leasetime_handler.getAllocatedDict())
+
         else:
             logging.warning(f"TODO: error - need to send NAK message to {self.prettify(mac)}")
             return
