@@ -229,6 +229,7 @@ class DHCPHandler:
             logging.info(f"{Constants.OP2CMD[Constants.REQUEST]} from mac {mac_str}")
             self.handle_request(packet, mac, mac_str)
 
+
     def handle_discover(self, packet,mac, mac_str: str):
         # build offer
         #--------------------------

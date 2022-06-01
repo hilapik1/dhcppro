@@ -66,6 +66,7 @@ class Analyse:
         print("Current Time =", self.time_arrivel)
 
 
+
     def bytes_to_str(self, mac_addr: bytes)-> str:
         mac_s = mac_addr[:6].hex()
         mac_addr = mac_s[:2]
