@@ -310,6 +310,7 @@ class Analyse:
                 self.mark_as_black_list()
                 return Analyse.DO_NOTHING
 
+
     def update_ack_table(self):
         my_cursor = self.db_handler.get_cursor()
         current_time = datetime.now()

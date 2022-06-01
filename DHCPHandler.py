@@ -167,6 +167,7 @@ class IP_allocator:
         offer_dict.update({mac: (ip_requested, timeout, now)})
         return ip_requested
 
+
     def acknowledge_dictionary(self, ip, mac, allocated_dict):
         #check why it remove me from allocated dict
         timeout = Constants.LEASE_TIME*20

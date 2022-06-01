@@ -107,6 +107,7 @@ class DBHandler:
         my_cursor.execute(query)
         self.connection.commit()
 
+
     def get_cursor(self):
         return self.connection.cursor()
 
