@@ -186,6 +186,7 @@ class IP_allocator:
         logging.info(f"!!!!!!!!!!!!! the number of ip addresses that was left: {self.ip_bank.qsize()} !!!!!!!!!!!!!!!!!!!")
 
 
+
 class DHCPHandler:
     def __init__(self, analyser):
         #tables and database, and etc

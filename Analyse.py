@@ -21,6 +21,7 @@ class Analyse:
     RETURN_IP_TO_BANK=3
     MARK_AS_BLACK_LIST=4
 
+
     def __init__(self, db_handler):
         self.mac_address = None
         self.count = 1
