@@ -13,7 +13,6 @@ IP_ADDRESS = "192.168.10.10"
 SUBNET_MASK = "255.255.255.0"
 
 
-
 class LeaseTimeHandler:
     def __init__(self, analyser):
         self.__offer_dict__ = {}
@@ -60,26 +59,27 @@ class LeaseTimeHandler:
             curtime = datetime.now()
             logging.info(f"worker: checking ips in offer lease")
             remove_list = []
-            for mac in self.__offer_dict__.keys():
-                self.__check_lease_time(curtime, mac, self.__offer_dict__, remove_list, ip_allocator)
+            for mac_str in self.__offer_dict__.keys():
+                self.__check_lease_time(curtime, mac_str, self.__offer_dict__, remove_list, ip_allocator)
 
             logging.info(f"worker: clean offer dict")
-            for mac in remove_list:
-                self.__offer_dict__.pop(mac)
+            for mac_str in remove_list:
+                self.__offer_dict__.pop(mac_str)
 
             remove_list = []
             logging.info(f"worker: checking ips in allocated lease")
-            for mac in self.__allocated_dict__.keys():
-                self.__check_lease_time(curtime, mac, self.__allocated_dict__, remove_list, ip_allocator)
+            for mac_str in self.__allocated_dict__.keys():
+                self.__check_lease_time(curtime, mac_str, self.__allocated_dict__, remove_list, ip_allocator)
 
-            for mac in remove_list:
+            for mac_str in remove_list:
                 #####################################
                 #delete from acktable
-                self.__analyser__.delete_from_ack_table(self.bytes_to_str(mac))  ############################
-                self.__allocated_dict__.pop(mac)
+                #self.__analyser__.delete_from_ack_table(self.bytes_to_str(mac))  ############################
+                self.__analyser__.delete_from_ack_table(mac_str)
+                self.__allocated_dict__.pop(mac_str)
 
-    def __check_lease_time(self, curtime, mac, dict, remove_list, ip_allocator):
-        ip, lease_time, original_time = dict[mac]
+    def __check_lease_time(self, curtime, mac_str, dict, remove_list, ip_allocator):
+        ip, lease_time, original_time = dict[mac_str]
         diff = curtime - original_time
         result = diff.total_seconds()
         logging.debug(f"worker: calculated diff = {result}")
@@ -91,7 +91,7 @@ class LeaseTimeHandler:
             # ip need to return to ip bank
             logging.info(f"worker: timeout occured, move ip {ip} back to bank")
             ip_allocator.add_2_bank(ip)
-            remove_list.append(mac)
+            remove_list.append(mac_str)
 
 
 
@@ -152,11 +152,11 @@ class IP_allocator:
         #     else:
         #         #generateDynamic part
 
-    def offer_dictionary(self, mac, allocated_dict, offer_dict):
-        if mac in allocated_dict.keys():
+    def offer_dictionary(self, mac_str, allocated_dict, offer_dict):
+        if mac_str in allocated_dict.keys():
              logging.debug("-------------------- found mac --- reoffering ------------------------")
-             ip_requested = allocated_dict[mac][0]
-             allocated_dict.pop(mac)
+             ip_requested = allocated_dict[mac_str][0]
+             allocated_dict.pop(mac_str)
         else:
              logging.debug("@@@@@@@@@@@@@@@@@@@@@ new mac @@@ offering @@@@@@@@@@@@@@@@@@@@@@@@@")
              ip_requested = self.ip_bank.get()
@@ -164,21 +164,21 @@ class IP_allocator:
 
         timeout = Constants.LEASE_TIME
         now = datetime.now()
-        offer_dict.update({mac: (ip_requested, timeout, now)})
+        offer_dict.update({mac_str: (ip_requested, timeout, now)})
         return ip_requested
 
 
-    def acknowledge_dictionary(self, ip, mac, allocated_dict):
+    def acknowledge_dictionary(self, ip, mac_str, allocated_dict):
         #check why it remove me from allocated dict
         timeout = Constants.LEASE_TIME*20
         ####################################################################################### cheat remove*20
         now = datetime.now()
-        allocated_dict.update({mac: (ip, timeout, now)})
+        allocated_dict.update({mac_str: (ip, timeout, now)})
         return allocated_dict
 
-    def update_ackknowledge_lease_time(self, mac, allocated_dict):
+    def update_ackknowledge_lease_time(self, mac_str, allocated_dict):
         now = datetime.now()
-        allocated_dict[mac] = (allocated_dict[mac][0], Constants.LEASE_TIME, now)
+        allocated_dict[mac_str] = (allocated_dict[mac_str][0], Constants.LEASE_TIME, now)
         return allocated_dict
 
     def add_2_bank(self, ip):
@@ -204,35 +204,45 @@ class DHCPHandler:
                     return True
         return False
 
+    def bytes_to_str(self, mac_addr: bytes) -> str:
+        mac_s = mac_addr[:6].hex()
+        mac_addr = mac_s[:2]
+        for i in range(2, len(mac_s), 2):
+            mac_addr += ":"
+            mac_addr += mac_s[i:i + 2]
+
+        return mac_addr
+
     def handle(self, packet):
         #packet.show()
         if Ether in packet:
             mac = packet[BOOTP].chaddr
+            mac_str=self.bytes_to_str(mac)
         logging.debug(packet)
         logging.debug(packet[BOOTP])
         type_message = packet[BOOTP][DHCP].options#[0][1]  # 1-discover, 3-request
         if self.is_discover(packet):
-            logging.info(f"{Constants.OP2CMD[Constants.DISCOVER]} from mac {mac}")
-            self.handle_discover(packet, mac)
+            logging.info(f"{Constants.OP2CMD[Constants.DISCOVER]} from mac {mac_str}")
+            self.handle_discover(packet,mac, mac_str)
 
         elif self.is_request(packet):
-            logging.info(f"{Constants.OP2CMD[Constants.REQUEST]} from mac {mac}")
-            self.handle_request(packet, mac)
+            logging.info(f"{Constants.OP2CMD[Constants.REQUEST]} from mac {mac_str}")
+            self.handle_request(packet, mac, mac_str)
 
-    def handle_discover(self, packet,mac):
+    def handle_discover(self, packet,mac, mac_str: str):
         # build offer
         #--------------------------
         what_to_do = self.analyser.analyse_discover(packet)#when we got discover we call to analyse
         if what_to_do == Analyse.DO_NOTHING:
-            if mac in self.leasetime_handler.getOfferDict().keys():
-                self.ip_allocator.add_2_bank(self.leasetime_handler.getOfferDict()[mac])
-                self.leasetime_handler.getOfferDict().pop(mac)
+            if mac_str in self.leasetime_handler.getOfferDict().keys():
+                self.ip_allocator.add_2_bank(self.leasetime_handler.getOfferDict()[mac_str])
+                self.leasetime_handler.getOfferDict().pop(mac_str)
                 return
 
-        if mac in self.leasetime_handler.getOfferDict().keys():
-            ip_requested = self.leasetime_handler.getOfferDict()[mac][0]  # how to renew timeout
+        if mac_str in self.leasetime_handler.getOfferDict().keys():
+            ip_requested = self.leasetime_handler.getOfferDict()[mac_str][0]  # how to renew timeout
         else:
-            ip_requested = self.ip_allocator.offer_dictionary(mac, self.leasetime_handler.getAllocatedDict(), self.leasetime_handler.getOfferDict())
+            ip_requested = self.ip_allocator.offer_dictionary(mac_str, self.leasetime_handler.getAllocatedDict(), self.leasetime_handler.getOfferDict())
         #--------------------------
         #self.lease_time=8267
         #ip_requested = self.ip_obj.offer_dictionary(mac)
@@ -240,7 +250,7 @@ class DHCPHandler:
         ethernet = Ether(dst="ff:ff:ff:ff:ff:ff", src="18:60:24:8F:64:90", type=0x800)
         ip = IP(dst="255.255.255.255", src="192.168.10.10")  # dest_addr
         udp = UDP(sport=Constants.dest_port, dport=Constants.src_port)
-        bootp = BOOTP(xid=packet[BOOTP].xid, flags=0x8000, op=2, yiaddr=ip_requested, siaddr="192.168.10.10", chaddr="ff:ff:ff:ff:ff:ff")
+        bootp = BOOTP(xid=packet[BOOTP].xid, flags=0x8000, op=2, yiaddr=ip_requested, siaddr="192.168.10.10", chaddr=mac)
         dhcp = DHCP(
             options=[("message-type", Constants.OFFER), ("server_id", ip_requested), ("broadcast_address", "255.255.255.255"),
                      ("router", "172.16.255.254"), ("subnet_mask", "255.255.0.0"),
@@ -249,35 +259,36 @@ class DHCPHandler:
         sendp(of_pack)
         logging.debug("packet was sent")
 
-    def handle_request(self, packet, mac):
+    def handle_request(self, packet, mac, mac_str: str):
         logging.debug("---handle_request")
+        logging.debug(mac_str)
         # build acknowledge
         what_to_do = self.analyser.analyse_request(packet)#$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ NEW
         if what_to_do == Analyse.DO_NOTHING:
             return
         #cur_ip = packet[DHCP].options[2][1] ?
-        if mac in self.leasetime_handler.getOfferDict().keys():
+        if mac_str in self.leasetime_handler.getOfferDict().keys():
             #to check about the mac_bytes to mac in string- how to do it
-            logging.debug(f"****** request from {self.prettify(mac)} ******")
-            cur_ip = self.leasetime_handler.getOfferDict()[mac][0]
-            self.leasetime_handler.getOfferDict().pop(mac)
-            self.ip_allocator.acknowledge_dictionary(cur_ip, mac, self.leasetime_handler.getAllocatedDict())
+            logging.debug(f"****** request from {mac_str} ******")
+            cur_ip = self.leasetime_handler.getOfferDict()[mac_str][0]
+            self.leasetime_handler.getOfferDict().pop(mac_str)
+            self.ip_allocator.acknowledge_dictionary(cur_ip, mac_str, self.leasetime_handler.getAllocatedDict())
 
         # just renew lease time
-        elif mac in self.leasetime_handler.getAllocatedDict().keys():
-            cur_ip = self.leasetime_handler.getAllocatedDict()[mac][0]
-            self.ip_allocator.update_ackknowledge_lease_time(mac, self.leasetime_handler.getAllocatedDict())
+        elif mac_str in self.leasetime_handler.getAllocatedDict().keys():
+            cur_ip = self.leasetime_handler.getAllocatedDict()[mac_str][0]
+            self.ip_allocator.update_ackknowledge_lease_time(mac_str, self.leasetime_handler.getAllocatedDict())
 
         else:
-            logging.warning(f"TODO: error - need to send NAK message to {self.prettify(mac)}")
+            logging.warning(f"TODO: error - need to send NAK message to {mac_str}")
             return
 
         print(cur_ip)
-        ethernet = Ether(dst=self.prettify(mac), src="18:60:24:8F:64:90", type=0x800)
+        ethernet = Ether(dst=mac_str, src="18:60:24:8F:64:90", type=0x800)
         # save_ip=get_requested_ip(IpQueue)
         ip = IP(dst=cur_ip, src="192.168.10.10")  # destination address
         udp = UDP(sport=Constants.src_port, dport=Constants.dest_port)
-        bootp = BOOTP(xid=packet[BOOTP].xid, op=2, yiaddr=cur_ip, siaddr="192.168.10.10", chaddr=self.prettify(mac))
+        bootp = BOOTP(xid=packet[BOOTP].xid, op=2, yiaddr=cur_ip, siaddr="192.168.10.10", chaddr=mac)
         dhcp = DHCP(
             options=[("message-type", Constants.ACK), ("server_id", cur_ip), ("broadcast_address", "255.255.255.255"),
                      ("router", "192.168"

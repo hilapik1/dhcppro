@@ -342,7 +342,7 @@ class Analyse:
         self.index+=1
         self.data.append([self.index, self.mac_address, self.ip_address, self.subnet_mask, current_time, self.expire, self.lease_time])
         print("##############################")
-        mac=self.mac_address
+        #mac=self.mac_address
         #self.Treeview.insert(self.mac_address)
         #self.Treeview.insert(self.mac_address)
         print("##############################")
