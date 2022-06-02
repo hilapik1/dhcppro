@@ -125,6 +125,10 @@ class DBHandler:
         '''
         return self.connection.cursor()
 
+    def get_reconnect(self):
+        self.connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password,
+                                                  database=self.database)
+
     def get_connection(self):
         '''
 

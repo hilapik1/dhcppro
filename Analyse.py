@@ -263,7 +263,7 @@ class Analyse:
         print(self.ip_address)
         current_time = datetime.now()
         print(current_time.time())
-        self.expire = datetime.now() + timedelta(seconds=10)
+        self.expire = datetime.now() + timedelta(seconds=Constants.LEASE_TIME)
         print("updated time : ")
         print(self.expire)
         my_cursor = self.db_handler.get_cursor()
@@ -301,7 +301,7 @@ class Analyse:
         '''
         my_cursor = self.db_handler.get_cursor()
         current_time = datetime.now()
-        self.expire = current_time + timedelta(seconds=10)
+        self.expire = current_time + timedelta(seconds=Constants.LEASE_TIME)
         query = f"UPDATE acktable SET expire = '{self.expire}', time_given='{current_time}' WHERE mac_address = '{self.mac_address}';"
         my_cursor.execute(query)
         connection = self.db_handler.get_connection()
@@ -320,6 +320,7 @@ class Analyse:
         print("macccccccccccccccccccccccccc")
         print(self.mac_address)
         print(self.subnet_mask)
+        self.expire = datetime.now() + timedelta(seconds=Constants.LEASE_TIME)
         query = f"INSERT INTO dhcppro.acktable(mac_address, time_given, lease_time, ip_address, subnet_mask, expire) VALUES ('{self.mac_address}','{current_time}', {self.lease_time} , '{self.ip_address}','{self.subnet_mask}','{self.expire}');"
         # "ID", "MAC ADDRESS", "IP ADDRESS", "SUBNET MASK", "TIME GIVEN", "EXPIRE", "LEASE TIME"
         print(query)

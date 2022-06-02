@@ -230,7 +230,7 @@ class IP_allocator:
         :param allocated_dict: {mac_str: (ip, timeout, now)}
         :return: allocated dictionary after updating it.
         '''
-        timeout = Constants.LEASE_TIME*20
+        timeout = Constants.LEASE_TIME #*20
         ####################################################################################### cheat remove*20
         now = datetime.now()
         allocated_dict.update({mac_str: (ip, timeout, now)})
