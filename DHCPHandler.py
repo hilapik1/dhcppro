@@ -14,21 +14,21 @@ SUBNET_MASK = "255.255.255.0"
 
 
 class LeaseTimeHandler:
-    def _init_(self, analyser):
+    def __init__(self, analyser):
         '''
 
         :param analyser: object who connects to the db and analyzes the data
         return: doesn't return anything, just creates two dictionaries and initializes the analyse object.
         '''
-        self._offer_dict_ = {}
-        self._allocated_dict_ = {}
-        self._analyser_ = analyser
+        self.__offer_dict__ = {}
+        self.__allocated_dict__ = {}
+        self.__analyser__ = analyser
 
     def getOfferDict(self):
-        return self._offer_dict_
+        return self.__offer_dict__
 
     def getAllocatedDict(self):
-        return self._allocated_dict_
+        return self.__allocated_dict__
 
     def addOffer(self, mac, ip):
         pass
@@ -62,6 +62,16 @@ class LeaseTimeHandler:
 
         return mac_addr
 
+    def str_to_bytes(self, mac_addr: str)->bytes:
+        '''
+        Convers a MAC address string to byte.
+        :return: MAC address in bytes
+        '''
+        s= mac_addr.replace(":","")
+        int_s=int(s,16)
+        bytes_s=int_s.to_bytes(6,"big")
+        return bytes_s
+
     def worker(self, ip_allocator):
         '''
 
@@ -75,24 +85,29 @@ class LeaseTimeHandler:
             curtime = datetime.now()
             logging.info(f"worker: checking ips in offer lease")
             remove_list = []
-            for mac_str in self._offer_dict_.keys():
-                self._check_lease_time(curtime, mac_str, self.offer_dict_, remove_list, ip_allocator)
+            for mac_str in self.__offer_dict__.keys():
+                self.__check_lease_time(curtime, mac_str, self.__offer_dict__, remove_list, ip_allocator)
 
             logging.info(f"worker: clean offer dict")
             for mac_str in remove_list:
-                self._offer_dict_.pop(mac_str)
-
+                self.__offer_dict__.pop(mac_str)
+                #mac_bytes = self.str_to_bytes(mac_str)
+                #need to send NAK , when expired                                                    ask how to do it
             remove_list = []
             logging.info(f"worker: checking ips in allocated lease")
-            for mac_str in self._allocated_dict_.keys():
-                self._check_lease_time(curtime, mac_str, self.allocated_dict_, remove_list, ip_allocator)
+            for mac_str in self.__allocated_dict__.keys():
+                self.__check_lease_time(curtime, mac_str, self.__allocated_dict__, remove_list, ip_allocator)
 
             for mac_str in remove_list:
                 #####################################
                 #delete from acktable
                 #self._analyser_.delete_from_ack_table(self.bytes_to_str(mac))  ############################
-                self._analyser_.delete_from_ack_table(mac_str)
-                self._allocated_dict_.pop(mac_str)
+                self.__analyser__.delete_from_ack_table(mac_str)
+                self.__allocated_dict__.pop(mac_str)
+                # need to send NAK , when expired
+                #mac_bytes = self.str_to_bytes(mac_str)
+
+
 
     def __check_lease_time(self, curtime, mac_str, dict, remove_list, ip_allocator):
         '''
@@ -122,7 +137,7 @@ class LeaseTimeHandler:
 
 class IP_allocator:
 
-    def _init_(self, subnet_mask, ip_addr):
+    def __init__(self, subnet_mask, ip_addr):
         '''
 
         :param subnet_mask:
@@ -243,7 +258,7 @@ class IP_allocator:
 
 
 class DHCPHandler:
-    def _init_(self, analyser):
+    def __init__(self, analyser):
         '''
 
         :param analyser: object who connects to the db and analyzes the data
@@ -265,7 +280,7 @@ class DHCPHandler:
         '''
         if UDP in packet:
             logging.debug(packet[UDP].dport)
-            if packet[UDP].dport == Constants.dest_port:
+            if packet[UDP].dport == Constants.server_port:
                 if DHCP in packet:
                     return True
         return False
@@ -332,7 +347,7 @@ class DHCPHandler:
         logging.info(f"---handle_discover - ip = {ip_requested}")
         ethernet = Ether(dst="ff:ff:ff:ff:ff:ff", src="18:60:24:8F:64:90", type=0x800)
         ip = IP(dst="255.255.255.255", src="192.168.10.10")  # dest_addr
-        udp = UDP(sport=Constants.dest_port, dport=Constants.src_port)
+        udp = UDP(sport=Constants.server_port, dport=Constants.client_port)
         bootp = BOOTP(xid=packet[BOOTP].xid, flags=0x8000, op=2, yiaddr=ip_requested, siaddr="192.168.10.10", chaddr=mac)
         dhcp = DHCP(
             options=[("message-type", Constants.OFFER), ("server_id", ip_requested), ("broadcast_address", "255.255.255.255"),
@@ -348,7 +363,7 @@ class DHCPHandler:
         :param packet:
         :param mac: in bytes
         :param mac_str: type-> string
-        :return: doesn't return anything, just send a request packet.
+        :return: doesn't return anything, just send a Ack packet.
         '''
         logging.debug("---handle_request")
         logging.debug(mac_str)
@@ -371,13 +386,14 @@ class DHCPHandler:
 
         else:
             logging.warning(f"TODO: error - need to send NAK message to {mac_str}")
+            self.handle_NAK(packet,mac_str,mac)
             return
 
         print(cur_ip)
         ethernet = Ether(dst=mac_str, src="18:60:24:8F:64:90", type=0x800)
         # save_ip=get_requested_ip(IpQueue)
         ip = IP(dst=cur_ip, src="192.168.10.10")  # destination address
-        udp = UDP(sport=Constants.src_port, dport=Constants.dest_port)
+        udp = UDP(sport=Constants.server_port, dport=Constants.client_port)
         bootp = BOOTP(xid=packet[BOOTP].xid, op=2, yiaddr=cur_ip, siaddr="192.168.10.10", chaddr=mac)
         dhcp = DHCP(
             options=[("message-type", Constants.ACK), ("server_id", cur_ip), ("broadcast_address", "255.255.255.255"),
@@ -388,6 +404,25 @@ class DHCPHandler:
         #of_pack1.show()
         # send ack
         sendp(of_pack1)
+        #self.handle_NAK(packet, mac_str, mac)#########
+
+    def handle_NAK(self,packet,mac_str, mac):
+        '''
+
+        :param packet:
+        :param mac_str:
+        :param mac:
+        :return: doesn't return anything, just send a Nak packet.
+        '''
+        ethernet= Ether(src="18:60:24:8F:64:90",dst=mac_str)
+        ip= IP(src="192.168.10.10",dst=packet[IP].dst)
+        print(packet[BOOTP].ciaddr)
+        udp= UDP(sport=Constants.server_port, dport=Constants.client_port)
+        bootp=BOOTP(ciaddr=packet[IP].src,xid=packet[BOOTP].xid, op=2, siaddr=packet[IP].dst, chaddr=mac)
+        dhcp= DHCP(options=[('server_id',"192.168.10.10"),('message-type', Constants.NAK),('end')])
+        of_pack2= ethernet / ip / udp / bootp / dhcp
+        of_pack2.show()
+        sendp(of_pack2)
 
 
     @staticmethod

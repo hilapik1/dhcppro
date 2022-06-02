@@ -43,6 +43,8 @@ def main():
     logging.basicConfig(format='%(created)f [%(levelname)s] - %(threadName)s - %(message)s')
     logging.getLogger().setLevel(logging.INFO)
     db_handler = DBHandler('localhost', "root", 'cyber', 'dhcppro')
+    db_handler.clean_ack_table()
+    db_handler.clean_discover_table()
     analyser = Analyse(db_handler)
     handler = DHCPHandler(analyser)
 

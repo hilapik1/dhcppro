@@ -68,7 +68,7 @@ class DHCPHandler:
 '''
 class DHCP_generator:
 
-    def _init_(self, src_port, dest_port, client_mac):
+    def __init__(self, src_port, dest_port, client_mac):
         self.src_port = src_port
         self.dest_port = dest_port
         self.mac = client_mac

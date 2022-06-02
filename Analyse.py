@@ -17,7 +17,7 @@ class Analyse:
     RETURN_IP_TO_BANK = 3
     MARK_AS_BLACK_LIST = 4
 
-    def _init_(self, db_handler):
+    def __init__(self, db_handler):
         '''
 
                :param db_handler: that creates the connection with the database, and creates the db and its tables if don't exist.

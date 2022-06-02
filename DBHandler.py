@@ -6,7 +6,7 @@ class QueryMacExist:
     COUNT = 1
     QUERY = "SELECT mac_address, count FROM dhcppro.discovertable where mac_address = "
 
-    def _init_(self, mac):
+    def __init__(self, mac):
         self.QUERY = QueryMacExist.QUERY + f"'{mac}'"#"'"+mac+"'"
         print(self.QUERY)
 
@@ -16,7 +16,7 @@ class QueryCountBlacklist:
     BLACK_LIST = 1
     QUERY = "SELECT count ,black_list FROM dhcppro.discovertable where mac_address = "
 
-    def _init_(self, mac):
+    def __init__(self, mac):
         self.QUERY = QueryCountBlacklist.QUERY + f"'{mac}'"
 
 
@@ -30,7 +30,7 @@ class QueryAckTableStatus:
     SUBNET_MASK = 5
     EXPIRE = 6
 
-    def _init_(self):
+    def __init__(self):
         self.QUERY = QueryAckTableStatus.QUERY
 
 
@@ -39,13 +39,13 @@ class InsertToDiscoverTable:
     #f"INSERT INTO discovertable (mac_address, time_arrivel, count, black_list) VALUES ('{self.mac_address}','{self.time_arrivel}', {self.count} , {1 if self.black_list else 0});
     QUERY="INSERT INTO discovertable (mac_address, time_arrivel, count, black_list) VALUES "#
 
-    def _init_(self, mac_address, time_arrivel, count, black_list):
+    def __init__(self, mac_address, time_arrivel, count, black_list):
         self.QUERY = f"INSERT INTO dhcppro.discovertable (mac_address, time_arrivel, count, black_list) VALUES ('{mac_address}','{time_arrivel}', {count} , {black_list});"
         print(self.QUERY)
 
 
 class DBHandler:
-    def _init_(self, host, user, password, database):
+    def __init__(self, host, user, password, database):
         '''
 
         :param host:
@@ -104,6 +104,19 @@ class DBHandler:
     #     #insert if count=0 --> count=0+1=1 , update if count=1 --> count=1+1=2
     #     self.analyse.analyse_discover(discover_object)
 
+    def clean_ack_table(self):
+        # clean ack table:
+        query = "delete FROM dhcppro.acktable where true;"
+        my_cursor = self.connection.cursor()
+        my_cursor.execute(query)
+        self.connection.commit()
+
+    def clean_discover_table(self):
+        # clean discover table:
+        query = "delete FROM dhcppro.discovertable where true;"
+        my_cursor = self.connection.cursor()
+        my_cursor.execute(query)
+        self.connection.commit()
 
     def get_cursor(self):
         '''

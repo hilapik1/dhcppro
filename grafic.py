@@ -5,7 +5,7 @@ from DBHandler import DBHandler, QueryAckTableStatus
 
 class Creation:
 
-    def _init_(self):
+    def __init__(self):
        pass
 
 

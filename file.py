@@ -1,8 +1,8 @@
 class Constants:
     # src_port=2025
     # dest_port=2023
-    src_port = 68
-    dest_port = 67
+    client_port = 68 #src
+    server_port = 67
     iface= '\u200F\u200FEthernet'
     MASK_PART = 0
     IP_PART = 1
@@ -13,7 +13,7 @@ class Constants:
     OFFER = 2
     REQUEST = 3
     ACK = 5
-
+    NAK=6
 
     LEASE_TIME = 20
 
