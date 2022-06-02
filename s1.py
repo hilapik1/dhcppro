@@ -30,7 +30,6 @@ Index = 1
 SIZE_QUEUE = 0
 
 
-
 # server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)  # UDP
 # server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 # server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -41,10 +40,8 @@ SIZE_QUEUE = 0
 
 def main():
     logging.basicConfig(format='%(created)f [%(levelname)s] - %(threadName)s - %(message)s')
-    logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.INFO)
     db_handler = DBHandler('localhost', "root", 'cyber', 'dhcppro')
-    db_handler.clean_ack_table()
-    db_handler.clean_discover_table()
     analyser = Analyse(db_handler)
     handler = DHCPHandler(analyser)
 
