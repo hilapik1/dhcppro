@@ -333,6 +333,7 @@ class Creation:
     #     select_record_button = Button(button_frame, text="Select Record")
     #     select_record_button.grid(row=0, column=7, padx=10, pady=10)
 
+
 def main():
     create_gui = Creation()
     create_gui.create_var(DBHandler(host='localhost', user="root", password='cyber',database='dhcppro'))

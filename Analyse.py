@@ -309,6 +309,7 @@ class Analyse:
         print("##################PROBLEMMMMMMMMMM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         print(query)
 
+
     def add_to_ack_table(self):
         '''
 

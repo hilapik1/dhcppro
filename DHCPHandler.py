@@ -402,6 +402,7 @@ class DHCPHandler:
         return mac_bytes.hex(":")[0:Constants.MAC_ADDRESS_LENGTH]
 
 
+
     @staticmethod
     def is_discover(packet) -> bool:
         '''

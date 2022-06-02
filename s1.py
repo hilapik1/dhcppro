@@ -15,6 +15,7 @@ from DHCPHandler import DHCPHandler
 from Analyse import Analyse
 from grafic import Creation
 
+
 MAX_MSG_LENGTH = 1024
 UDP_IP = "192.168.31.24"
 UDP_PORT = 2023

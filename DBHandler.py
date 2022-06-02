@@ -104,6 +104,7 @@ class DBHandler:
     #     #insert if count=0 --> count=0+1=1 , update if count=1 --> count=1+1=2
     #     self.analyse.analyse_discover(discover_object)
 
+
     def get_cursor(self):
         '''
 
