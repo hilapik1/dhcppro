@@ -1,5 +1,6 @@
 import mysql.connector
 from pip._internal.utils import logging
+import configparser
 
 class QueryMacExist:
     MAC = 0
@@ -45,7 +46,7 @@ class InsertToDiscoverTable:
 
 
 class DBHandler:
-    def __init__(self, host, user, password, database):
+    def __init__(self): #, host, user, password, database
         '''
 
         :param host:
@@ -54,10 +55,22 @@ class DBHandler:
         :param database:
         :return does'nt return anything, initialize a DBHandler object
         '''
-        self.host = host
-        self.user = user
-        self.password = password
-        self.database = database
+        config = configparser.ConfigParser()
+        config.read('config.ini')
+        section_proxy_items = config['Default'].items()
+        list=[]
+        for i in section_proxy_items:
+            print (i)
+            list.append(i)
+        #print(section_proxy_items[0])
+        self.host = list[0][1]#'hostname'
+        self.user=list[1][1]#'username'
+        self.password=list[2][1]#'password'
+        self.database=list[3][1]#'database'
+        print(self.host)
+        #self.user = section_proxy_items['username']
+        #self.password = section_proxy_items['password']
+        #self.database = section_proxy_items['database']
         self.connection = None
         self.initialize()
 

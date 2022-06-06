@@ -1,3 +1,4 @@
+
 import socket
 import time
 from datetime import date
@@ -42,7 +43,7 @@ SIZE_QUEUE = 0
 def main():
     logging.basicConfig(format='%(created)f [%(levelname)s] - %(threadName)s - %(message)s')
     logging.getLogger().setLevel(logging.INFO)
-    db_handler = DBHandler('localhost', "root", 'cyber', 'dhcppro')
+    db_handler = DBHandler()
     db_handler.clean_ack_table()
     db_handler.clean_discover_table()
     analyser = Analyse(db_handler)
