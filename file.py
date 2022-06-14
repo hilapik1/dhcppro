@@ -1,6 +1,4 @@
 class Constants:
-    # src_port=2025
-    # dest_port=2023
     client_port = 68 #src
     server_port = 67
     iface= '\u200F\u200FEthernet'
@@ -14,7 +12,6 @@ class Constants:
     REQUEST = 3
     ACK = 5
     NAK=6
-
     LEASE_TIME = 20
 
     MAC_ADDRESS_LENGTH = 17

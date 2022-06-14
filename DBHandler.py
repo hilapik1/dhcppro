@@ -80,8 +80,7 @@ class DBHandler:
         :return: doesn't return anything, if the database we got as parameter doesn't exist in mysql, we will create one and create its tables.
 
         '''
-        self.connection = mysql.connector.connect(host=self.host, user=self.user,
-                                                  password=self.password)  # host='localhost', user="root", password='cyber'
+        self.connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password)  # host='localhost', user="root", password='cyber'
         my_cursor = self.connection.cursor()
         my_cursor.execute("SHOW DATABASES")
         found = False

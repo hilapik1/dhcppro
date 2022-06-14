@@ -1,20 +1,9 @@
-
-import socket
-import time
-from datetime import date
 from scapy.all import *
-from scapy.layers.dhcp import DHCP, BOOTP
-from scapy.layers.inet import UDP, IP
-import scapy.all as scapy
-from scapy.layers.l2 import Ether
-import os
-from file import Constants
-from datetime import datetime, timedelta
 import logging
 from DBHandler import DBHandler
 from DHCPHandler import DHCPHandler
 from Analyse import Analyse
-from grafic import Creation
+
 
 
 MAX_MSG_LENGTH = 1024
@@ -32,13 +21,6 @@ Index = 1
 SIZE_QUEUE = 0
 
 
-# server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)  # UDP
-# server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-# server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-# server_socket.bind((UDP_IP, UDP_PORT))
-# #server_socket.listen()
-
-
 
 def main():
     logging.basicConfig(format='%(created)f [%(levelname)s] - %(threadName)s - %(message)s')
@@ -51,17 +33,8 @@ def main():
 
     while True:
 
-        logging.debug("enter to loop")
-        #try:
-
-        logging.debug("enter to try")
-        # sock.sendto(bytes("hello", "utf-8"), ip_co)
         pa = sniff(lfilter=handler.filter, prn=handler.handle)#expecting to recieve discover msg
 
-        #except Exception as ex:
-            #print(ex)
-            #print("error")
-            #continue
 
 
 if __name__ == "__main__":

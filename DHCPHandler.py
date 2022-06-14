@@ -3,9 +3,7 @@ from scapy.layers.dhcp import DHCP, BOOTP
 from scapy.layers.inet import UDP, IP
 from scapy.layers.l2 import Ether
 import ipaddress
-import scapy.all as scapy
 from file import Constants
-from Analyse import Analyse
 from queue import Queue
 from Analyse import Analyse
 
@@ -91,21 +89,18 @@ class LeaseTimeHandler:
             logging.info(f"worker: clean offer dict")
             for mac_str in remove_list:
                 self.__offer_dict__.pop(mac_str)
-                #mac_bytes = self.str_to_bytes(mac_str)
-                #need to send NAK , when expired                                                    ask how to do it
+                #need to send NAK
+
             remove_list = []
             logging.info(f"worker: checking ips in allocated lease")
             for mac_str in self.__allocated_dict__.keys():
                 self.__check_lease_time(curtime, mac_str, self.__allocated_dict__, remove_list, ip_allocator)
 
             for mac_str in remove_list:
-                #####################################
-                #delete from acktable
-                #self._analyser_.delete_from_ack_table(self.bytes_to_str(mac))  ############################
                 self.__analyser__.delete_from_ack_table(mac_str)
                 self.__allocated_dict__.pop(mac_str)
                 # need to send NAK , when expired
-                #mac_bytes = self.str_to_bytes(mac_str)
+
 
 
 
@@ -230,8 +225,7 @@ class IP_allocator:
         :param allocated_dict: {mac_str: (ip, timeout, now)}
         :return: allocated dictionary after updating it.
         '''
-        timeout = Constants.LEASE_TIME #*20
-        ####################################################################################### cheat remove*20
+        timeout = Constants.LEASE_TIME
         now = datetime.now()
         allocated_dict.update({mac_str: (ip, timeout, now)})
         return allocated_dict
@@ -304,13 +298,11 @@ class DHCPHandler:
         :param packet:
         :return: doesn't return anything, just checking the type of packet we got, and then call to relevant functions.
         '''
-        #packet.show()
         if Ether in packet:
             mac = packet[BOOTP].chaddr
             mac_str=self.bytes_to_str(mac)
         logging.debug(packet)
         logging.debug(packet[BOOTP])
-        type_message = packet[BOOTP][DHCP].options#[0][1]  # 1-discover, 3-request
         if self.is_discover(packet):
             logging.info(f"{Constants.OP2CMD[Constants.DISCOVER]} from mac {mac_str}")
             self.handle_discover(packet,mac, mac_str)
@@ -341,9 +333,6 @@ class DHCPHandler:
             ip_requested = self.leasetime_handler.getOfferDict()[mac_str][0]
         else:
             ip_requested = self.ip_allocator.offer_dictionary(mac_str, self.leasetime_handler.getAllocatedDict(), self.leasetime_handler.getOfferDict())
-        #--------------------------
-        #self.lease_time=8267
-        #ip_requested = self.ip_obj.offer_dictionary(mac)
         logging.info(f"---handle_discover - ip = {ip_requested}")
         ethernet = Ether(dst="ff:ff:ff:ff:ff:ff", src="18:60:24:8F:64:90", type=0x800)
         ip = IP(dst="255.255.255.255", src="192.168.10.10")  # dest_addr
@@ -368,12 +357,12 @@ class DHCPHandler:
         logging.debug("---handle_request")
         logging.debug(mac_str)
         # build acknowledge
-        what_to_do = self.analyser.analyse_request(packet)#$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ NEW
+        what_to_do = self.analyser.analyse_request(packet)
+        #time.sleep(30)
         if what_to_do == Analyse.DO_NOTHING:
             return
-        #cur_ip = packet[DHCP].options[2][1] ?
+
         if mac_str in self.leasetime_handler.getOfferDict().keys():
-            #to check about the mac_bytes to mac in string- how to do it
             logging.debug(f"** request from {mac_str} **")
             cur_ip = self.leasetime_handler.getOfferDict()[mac_str][0]
             self.leasetime_handler.getOfferDict().pop(mac_str)
@@ -381,6 +370,12 @@ class DHCPHandler:
 
         # just renew lease time
         elif mac_str in self.leasetime_handler.getAllocatedDict().keys():
+            logging.info(f"len(self.leasetime_handler.getAllocatedDict() = {len(self.leasetime_handler.getAllocatedDict())}")
+            if len(self.leasetime_handler.getAllocatedDict()) > 0:
+                logging.info(f"self.leasetime_handler.getAllocatedDict().keys() = {self.leasetime_handler.getAllocatedDict().keys()}")
+
+                logging.info(f"mac_str = {mac_str}")
+                logging.info(f"self.leasetime_handler.getAllocatedDict()[mac_str] = {self.leasetime_handler.getAllocatedDict()[mac_str]}")
             cur_ip = self.leasetime_handler.getAllocatedDict()[mac_str][0]
             self.ip_allocator.update_ackknowledge_lease_time(mac_str, self.leasetime_handler.getAllocatedDict())
 
@@ -389,22 +384,23 @@ class DHCPHandler:
             self.handle_NAK(packet,mac_str,mac)
             return
 
-        print(cur_ip)
-        ethernet = Ether(dst=mac_str, src="18:60:24:8F:64:90", type=0x800)
-        # save_ip=get_requested_ip(IpQueue)
-        ip = IP(dst=cur_ip, src="192.168.10.10")  # destination address
-        udp = UDP(sport=Constants.server_port, dport=Constants.client_port)
-        bootp = BOOTP(xid=packet[BOOTP].xid, op=2, yiaddr=cur_ip, siaddr="192.168.10.10", chaddr=mac)
-        dhcp = DHCP(
-            options=[("message-type", Constants.ACK), ("server_id", cur_ip), ("broadcast_address", "255.255.255.255"),
-                     ("router", "192.168"
-                                ".255.254"), ("subnet_mask", "255.255.0.0"),
-                     ("lease_time", Constants.LEASE_TIME)])  # router - gateway :"172.16.255.254"
-        of_pack1 = ethernet / ip / udp / bootp / dhcp
-        #of_pack1.show()
-        # send ack
-        sendp(of_pack1)
-        #self.handle_NAK(packet, mac_str, mac)#########
+        if self.analyser.this_is_a_ack_msg(packet) == True:
+            print(cur_ip)
+            ethernet = Ether(dst=mac_str, src="18:60:24:8F:64:90", type=0x800)
+            ip = IP(dst=cur_ip, src="192.168.10.10")
+            udp = UDP(sport=Constants.server_port, dport=Constants.client_port)
+            bootp = BOOTP(xid=packet[BOOTP].xid, op=2, yiaddr=cur_ip, siaddr="192.168.10.10", chaddr=mac)
+            dhcp = DHCP(
+                options=[("message-type", Constants.ACK), ("server_id", cur_ip), ("broadcast_address", "255.255.255.255"),
+                         ("router", "192.168"
+                                    ".255.254"), ("subnet_mask", "255.255.0.0"),
+                         ("lease_time", Constants.LEASE_TIME)])  # router - gateway :"172.16.255.254"
+            of_pack1 = ethernet / ip / udp / bootp / dhcp
+            # send ack
+            sendp(of_pack1)
+        else:
+            # you're in blacklist
+            pass
 
     def handle_NAK(self,packet,mac_str, mac):
         '''
@@ -423,19 +419,6 @@ class DHCPHandler:
         of_pack2= ethernet / ip / udp / bootp / dhcp
         of_pack2.show()
         sendp(of_pack2)
-
-
-    @staticmethod
-    def prettify(mac_bytes):
-        #convert mac bytes to string
-        #return ":".join('%02x' % ord(b) for b in mac_bytes)
-        logging.debug("&&&&"+mac_bytes.hex(":")[0:Constants.MAC_ADDRESS_LENGTH]+"&&&&&")
-        #mac_bytes[0:6].hex(":") ANOTHER OPTION
-        #print(mac_bytes)
-        #print(mac_bytes.hex(":"))
-        #print(type(mac_bytes.hex(":")[0:17]))
-        return mac_bytes.hex(":")[0:Constants.MAC_ADDRESS_LENGTH]
-
 
 
     @staticmethod
