@@ -1,0 +1,1 @@
+python server\s1.py 18:60:24:8F:64:90

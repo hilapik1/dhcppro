@@ -8,7 +8,7 @@ class QueryMacExist:
     QUERY = "SELECT mac_address, count FROM dhcppro.discovertable where mac_address = "
 
     def __init__(self, mac):
-        self.QUERY = QueryMacExist.QUERY + f"'{mac}'"#"'"+mac+"'"
+        self.QUERY = QueryMacExist.QUERY + f"'{mac}'"
         print(self.QUERY)
 
 
@@ -37,8 +37,7 @@ class QueryAckTableStatus:
 
 
 class InsertToDiscoverTable:
-    #f"INSERT INTO discovertable (mac_address, time_arrivel, count, black_list) VALUES ('{self.mac_address}','{self.time_arrivel}', {self.count} , {1 if self.black_list else 0});
-    QUERY="INSERT INTO discovertable (mac_address, time_arrivel, count, black_list) VALUES "#
+    QUERY="INSERT INTO discovertable (mac_address, time_arrivel, count, black_list) VALUES "
 
     def __init__(self, mac_address, time_arrivel, count, black_list):
         self.QUERY = f"INSERT INTO dhcppro.discovertable (mac_address, time_arrivel, count, black_list) VALUES ('{mac_address}','{time_arrivel}', {count} , {black_list});"
@@ -46,13 +45,9 @@ class InsertToDiscoverTable:
 
 
 class DBHandler:
-    def __init__(self): #, host, user, password, database
+    def __init__(self):
         '''
 
-        :param host:
-        :param user:
-        :param password:
-        :param database:
         :return does'nt return anything, initialize a DBHandler object
         '''
         config = configparser.ConfigParser()
@@ -62,15 +57,10 @@ class DBHandler:
         for i in section_proxy_items:
             print (i)
             list.append(i)
-        #print(section_proxy_items[0])
         self.host = list[0][1]#'hostname'
         self.user=list[1][1]#'username'
         self.password=list[2][1]#'password'
         self.database=list[3][1]#'database'
-        print(self.host)
-        #self.user = section_proxy_items['username']
-        #self.password = section_proxy_items['password']
-        #self.database = section_proxy_items['database']
         self.connection = None
         self.initialize()
 
@@ -94,14 +84,12 @@ class DBHandler:
             my_cursor = self.connection.cursor()
             my_cursor.execute(f"CREATE DATABASE {self.database}")
             my_cursor = self.connection.cursor()
-            # mycursor.execute("CREATE TABLE `dhcppro`.`new_table`(`id` INT NOT NULL, `mac_address` VARCHAR(45) NULL, PRIMARY KEY(`id`));")
             # CREATE DISCOVER TABLE
             my_cursor.execute(f"CREATE TABLE {self.database}.`discovertable`(`mac_address` VARCHAR(17) NOT NULL"
                               + ",`id` INT NOT NULL AUTO_INCREMENT,`time_arrivel` DATETIME NULL, `count` INT NULL"
                               + ",`black_list` TINYINT NULL, "
                               + "UNIQUE INDEX `mac_address_UNIQUE`(`mac_address` ASC) VISIBLE"
                               + ", UNIQUE INDEX `id_UNIQUE`(`id` ASC) VISIBLE, PRIMARY KEY(`id`));")
-            print("problem")
             my_cursor = self.connection.cursor()
             my_cursor.execute(f"CREATE TABLE {self.database}.`acktable`(`id` INT NOT NULL AUTO_INCREMENT,`mac_address` VARCHAR(17) NOT NULL"
                               +",`time_given` DATETIME NULL, `lease_time` INT NULL, `ip_address` VARCHAR(12) NOT NULL"
@@ -112,11 +100,12 @@ class DBHandler:
         # reinitialize connector directly to specific db
         self.connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password,
                                                   database=self.database)
-    # def ubsert(self, discover_object):
-    #     #insert if count=0 --> count=0+1=1 , update if count=1 --> count=1+1=2
-    #     self.analyse.analyse_discover(discover_object)
 
     def clean_ack_table(self):
+        '''
+
+        :return: doesn't return anything, just clean ack table in DB
+        '''
         # clean ack table:
         query = "delete FROM dhcppro.acktable where true;"
         my_cursor = self.connection.cursor()
@@ -124,6 +113,10 @@ class DBHandler:
         self.connection.commit()
 
     def clean_discover_table(self):
+        '''
+
+        :return: doesn't return anything, just clean discover table.
+        '''
         # clean discover table:
         query = "delete FROM dhcppro.discovertable where true;"
         my_cursor = self.connection.cursor()
@@ -138,6 +131,10 @@ class DBHandler:
         return self.connection.cursor()
 
     def get_reconnect(self):
+        '''
+
+        :return: doesn't return anything, just reconnect the connection.
+        '''
         self.connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password,
                                                   database=self.database)
 
@@ -148,5 +145,3 @@ class DBHandler:
         '''
         return self.connection
 
-    def select(self):
-        pass

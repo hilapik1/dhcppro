@@ -9,7 +9,7 @@ from Analyse import Analyse
 
 IP_ADDRESS = "192.168.10.10"
 SUBNET_MASK = "255.255.255.0"
-
+MAC_ADDRESS=sys.argv[1]
 
 class LeaseTimeHandler:
     def __init__(self, analyser):
@@ -28,23 +28,6 @@ class LeaseTimeHandler:
     def getAllocatedDict(self):
         return self.__allocated_dict__
 
-    def addOffer(self, mac, ip):
-        pass
-
-    def addAllocated(self, mac, ip):
-        pass
-
-    def removeFromOffer(self, mac):
-        pass
-
-    def removeFromAllocated(self, mac):
-        pass
-
-    def getOfferedMacKeys(self):
-        pass
-
-    def getAllocatedMacKeys(self):
-        pass
 
     def bytes_to_str(self,mac_addr: bytes)->str:
         '''
@@ -334,17 +317,30 @@ class DHCPHandler:
         else:
             ip_requested = self.ip_allocator.offer_dictionary(mac_str, self.leasetime_handler.getAllocatedDict(), self.leasetime_handler.getOfferDict())
         logging.info(f"---handle_discover - ip = {ip_requested}")
-        ethernet = Ether(dst="ff:ff:ff:ff:ff:ff", src="18:60:24:8F:64:90", type=0x800)
+        #send offer
+        of_pack=self.generate_offer(ip_requested,mac)
+        sendp(of_pack)
+        logging.debug("packet was sent")
+
+    def generate_offer(self,ip_requested,mac):
+        '''
+
+        :param ip_requested:
+        :param mac:
+        :return: an offer packet
+        '''
+        ethernet = Ether(dst="ff:ff:ff:ff:ff:ff", src=MAC_ADDRESS, type=0x800)
         ip = IP(dst="255.255.255.255", src="192.168.10.10")  # dest_addr
         udp = UDP(sport=Constants.server_port, dport=Constants.client_port)
-        bootp = BOOTP(xid=packet[BOOTP].xid, flags=0x8000, op=2, yiaddr=ip_requested, siaddr="192.168.10.10", chaddr=mac)
+        bootp = BOOTP(xid=packet[BOOTP].xid, flags=0x8000, op=2, yiaddr=ip_requested, siaddr="192.168.10.10",
+                      chaddr=mac)
         dhcp = DHCP(
-            options=[("message-type", Constants.OFFER), ("server_id", ip_requested), ("broadcast_address", "255.255.255.255"),
+            options=[("message-type", Constants.OFFER), ("server_id", ip_requested),
+                     ("broadcast_address", "255.255.255.255"),
                      ("router", "172.16.255.254"), ("subnet_mask", "255.255.0.0"),
                      ("lease_time", Constants.LEASE_TIME)])  # router - gateway :"172.16.255.254"
         of_pack = ethernet / ip / udp / bootp / dhcp
-        sendp(of_pack)
-        logging.debug("packet was sent")
+        return of_pack
 
     def handle_request(self, packet, mac, mac_str: str):
         '''
@@ -386,21 +382,33 @@ class DHCPHandler:
 
         if self.analyser.this_is_a_ack_msg(packet) == True:
             print(cur_ip)
-            ethernet = Ether(dst=mac_str, src="18:60:24:8F:64:90", type=0x800)
-            ip = IP(dst=cur_ip, src="192.168.10.10")
-            udp = UDP(sport=Constants.server_port, dport=Constants.client_port)
-            bootp = BOOTP(xid=packet[BOOTP].xid, op=2, yiaddr=cur_ip, siaddr="192.168.10.10", chaddr=mac)
-            dhcp = DHCP(
-                options=[("message-type", Constants.ACK), ("server_id", cur_ip), ("broadcast_address", "255.255.255.255"),
-                         ("router", "192.168"
-                                    ".255.254"), ("subnet_mask", "255.255.0.0"),
-                         ("lease_time", Constants.LEASE_TIME)])  # router - gateway :"172.16.255.254"
-            of_pack1 = ethernet / ip / udp / bootp / dhcp
             # send ack
+            of_pack1=self.generate_ack(cur_ip,mac_str,mac)
             sendp(of_pack1)
         else:
             # you're in blacklist
             pass
+
+    def generate_ack(self,cur_ip,mac_str,mac):
+        '''
+
+        :param cur_ip:
+        :param mac_str:
+        :param mac:
+        :return: an ack packet
+        '''
+        ethernet = Ether(dst=mac_str, src=MAC_ADDRESS, type=0x800)
+        ip = IP(dst=cur_ip, src="192.168.10.10")
+        udp = UDP(sport=Constants.server_port, dport=Constants.client_port)
+        bootp = BOOTP(xid=packet[BOOTP].xid, op=2, yiaddr=cur_ip, siaddr="192.168.10.10", chaddr=mac)
+        dhcp = DHCP(
+            options=[("message-type", Constants.ACK), ("server_id", cur_ip), ("broadcast_address", "255.255.255.255"),
+                     ("router", "192.168"
+                                ".255.254"), ("subnet_mask", "255.255.0.0"),
+                     ("lease_time", Constants.LEASE_TIME)])  # router - gateway :"172.16.255.254"
+        of_pack1 = ethernet / ip / udp / bootp / dhcp
+        return of_pack1
+
 
     def handle_NAK(self,packet,mac_str, mac):
         '''
@@ -410,7 +418,7 @@ class DHCPHandler:
         :param mac:
         :return: doesn't return anything, just send a Nak packet.
         '''
-        ethernet= Ether(src="18:60:24:8F:64:90",dst=mac_str)
+        ethernet= Ether(src=MAC_ADDRESS,dst=mac_str)
         ip= IP(src="192.168.10.10",dst=packet[IP].dst)
         print(packet[BOOTP].ciaddr)
         udp= UDP(sport=Constants.server_port, dport=Constants.client_port)
@@ -428,7 +436,11 @@ class DHCPHandler:
         :param packet:
         :return: True if the packet from type message "discover", else return False
         '''
-        type_message = packet[DHCP].options[0][1]  # 1-discover, 3-request
+        for option in packet[DHCP].options:
+            if option[0]=="message-type":
+                type_message = option[1]
+                break
+        #type_message = packet[DHCP].options[0][1]  # 1-discover, 3-request
         if type_message == Constants.DISCOVER:
             return True
         else:
@@ -440,7 +452,11 @@ class DHCPHandler:
         :param packet:
         :return: True if the packet from type message "request", else return False
         '''
-        type_message = packet[BOOTP][DHCP].options[0][1] # 1-discover, 3-request
+        #type_message = packet[BOOTP][DHCP].options[0][1] # 1-discover, 3-request
+        for option in packet[BOOTP][DHCP].options:
+            if option[0]=="message-type":
+                type_message = option[1]
+                break
         if type_message == Constants.REQUEST:
             return True
         else:

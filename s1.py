@@ -5,23 +5,6 @@ from DHCPHandler import DHCPHandler
 from Analyse import Analyse
 
 
-
-MAX_MSG_LENGTH = 1024
-UDP_IP = "192.168.31.24"
-UDP_PORT = 2023
-DISCOVER_MESSAGE = "discover"
-OFFER_MESSAGE = "offer"
-REQUEST_MESSAGE = "request"
-ACKNOWLEDGE_MESSSAGE = "acknowledge"
-MAX_COUNT = 40
-LAST_NUM = 26
-IP_ADRESS = "192.168.10.10"
-SUBNET_MASK = "255.255.255.0"
-Index = 1
-SIZE_QUEUE = 0
-
-
-
 def main():
     logging.basicConfig(format='%(created)f [%(levelname)s] - %(threadName)s - %(message)s')
     logging.getLogger().setLevel(logging.INFO)

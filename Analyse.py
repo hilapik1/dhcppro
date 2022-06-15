@@ -65,7 +65,10 @@ class Analyse:
         '''
         my_cursor = self.db_handler.get_cursor()
         my_cursor.execute(QueryMacExist(self.mac_address).QUERY)
+        logging.info("is_mac_exist:")
         for x in my_cursor:
+            logging.info(f"is_mac_exist: found {x[QueryMacExist.MAC]}")
+            logging.info(x)
             print(x[QueryMacExist.MAC])
             print(x)
             if x[QueryMacExist.MAC] == self.mac_address:
@@ -116,7 +119,7 @@ class Analyse:
         for x in my_cursor:
             count = x[QueryCountBlacklist.COUNT]
             black_list = x[QueryCountBlacklist.BLACK_LIST]
-            if count <= 2:
+            if count <= Constants.ATTACK_THRESHOLD: #2
                 if black_list == 0:  # false
                     return Analyse.RETURN_OFFER  # true
                 # else:
@@ -147,7 +150,7 @@ class Analyse:
         '''
         my_cursor = self.db_handler.get_cursor()
         count += 1
-        if count <= 2:
+        if count <= Constants.ATTACK_THRESHOLD:#2
             my_cursor.execute(f"UPDATE discovertable SET count ={count}  WHERE mac_address = '{self.mac_address}'")
         else:
             my_cursor.execute(
@@ -156,8 +159,8 @@ class Analyse:
         connection.commit()
         return self.response_to_two_differ_states()
         # if self.response_to_two_differ_states() == Analyse.RETURN_OFFER:
-        #     # send offer
         #     return Analyse.RETURN_OFFER
+        #     # send offer
         # else:
         #     return Analyse.DO_NOTHING
         # ---------------------------------------------------------------------------------------
@@ -222,7 +225,7 @@ class Analyse:
         for x in my_cursor:
             count = x[0]
             print(count)
-            if count <= 2:
+            if count <= Constants.ATTACK_THRESHOLD:#2
                 # send ack
                 return Analyse.RETURN_REQUEST
             else:
@@ -243,7 +246,7 @@ class Analyse:
         for x in my_cursor:
             count = x[0]
             print(count)
-            if count <= 2:
+            if count <= Constants.ATTACK_THRESHOLD:#2
                 # delete from discover table, we know for sure that this is not an attacker
                 self.add_to_ack_table()
                 self.delete_from_table()
@@ -256,7 +259,7 @@ class Analyse:
             return
 
         if self.is_mac_exist_in_ack_table() == True:
-            print("updateeeeeeeeeeeeeeeeeeee")
+            logging.info("updateeeeeeeeeeeeeeeeeeee")
             self.update_ack_table()
             return True
 
@@ -274,7 +277,6 @@ class Analyse:
         connection = self.db_handler.get_connection()
         connection.commit()
         logging.info(f"UUUUUUUUUUUUUUUUUUPPPPPPPPPPPPPPPPPPPPPPDDDDDDDDDDDDDDDDDDDDAAAAAAAAAAAAAAAAAAAAAAATTTTTTTTTTTTTTTTTTTTTEEEEEEEEEEEEEEEEEEE ")
-
         print(query)
 
 

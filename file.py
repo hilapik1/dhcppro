@@ -1,4 +1,5 @@
 class Constants:
+    ATTACK_THRESHOLD =6
     client_port = 68 #src
     server_port = 67
     iface= '\u200F\u200FEthernet'
