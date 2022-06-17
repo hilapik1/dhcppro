@@ -231,7 +231,7 @@ class Analyse:
             else:
                 return Analyse.DO_NOTHING
 
-    def this_is_a_ack_msg(self, request_packet):
+    def this_is_a_ack_msg(self, request_packet) ->bool:
         self.__parse(request_packet)
         self.lease_time = Constants.LEASE_TIME
         self.ip_address = request_packet[DHCP].options[2][1]
@@ -239,35 +239,49 @@ class Analyse:
         current_time = datetime.now()
         print(current_time.time())
         self.expire = datetime.now() + timedelta(seconds=Constants.LEASE_TIME)
-        print("updated time : ")
+        print("UUUUUUUUUUUUUUUUU updated time : ")
         print(self.expire)
         my_cursor = self.db_handler.get_cursor()
         my_cursor.execute(f"SELECT count FROM dhcppro.discovertable WHERE mac_address = '{self.mac_address}';")
         for x in my_cursor:
             count = x[0]
-            print(count)
-            if count <= Constants.ATTACK_THRESHOLD:#2
-                # delete from discover table, we know for sure that this is not an attacker
-                self.add_to_ack_table()
-                self.delete_from_table()
-                return True
+            logging.info(f"xid = {request_packet[BOOTP].xid}, count = {count}")
+            my_cursor1 = self.db_handler.get_cursor()
+            my_cursor1.execute(f"SELECT mac_address FROM dhcppro.acktable WHERE mac_address = '{self.mac_address}';")
+            exist_in_cursor = False
+            for x in my_cursor1:
+                exist_in_cursor = True
+                break
 
-            else:
-                self.mark_as_black_list()
-                return False
+            if exist_in_cursor == False:
+                logging.info(f"xid = {request_packet[BOOTP].xid}, in case len(my_cursor)==0")
 
-            return
+                if count <= Constants.ATTACK_THRESHOLD:#2
+                    logging.info(f"xid = {request_packet[BOOTP].xid}, in case count <= Constants.ATTACK_THRESHOLD")
+
+                    # delete from discover table, we know for sure that this is not an attacker
+                    self.add_to_ack_table()
+                    self.delete_from_table()
+                    return True
+
+                else:
+                    logging.info(f"xid = {request_packet[BOOTP].xid}, in case count <= else")
+
+                    self.mark_as_black_list()
+                    return False
+
 
         if self.is_mac_exist_in_ack_table() == True:
             logging.info("updateeeeeeeeeeeeeeeeeeee")
             self.update_ack_table()
             return True
 
-    def update_ack_table(self):
-        '''
+        return False
 
+    def update_ack_table(self):
+        """
         :return: doesn't return anything, just update the ack message in 'acktable'.
-        '''
+        """
         my_cursor = self.db_handler.get_cursor()
         current_time = datetime.now()
         self.expire = current_time + timedelta(seconds=Constants.LEASE_TIME)
@@ -279,12 +293,10 @@ class Analyse:
         logging.info(f"UUUUUUUUUUUUUUUUUUPPPPPPPPPPPPPPPPPPPPPPDDDDDDDDDDDDDDDDDDDDAAAAAAAAAAAAAAAAAAAAAAATTTTTTTTTTTTTTTTTTTTTEEEEEEEEEEEEEEEEEEE ")
         print(query)
 
-
     def add_to_ack_table(self):
-        '''
-
+        """
         :return: doesn't return anything, just add the ack message to 'acktable'.
-        '''
+        """
         my_cursor = self.db_handler.get_cursor()
         current_time = datetime.now()
         print(self.mac_address)

@@ -7,9 +7,11 @@ from file import Constants
 from queue import Queue
 from Analyse import Analyse
 
-IP_ADDRESS = "192.168.10.10"
-SUBNET_MASK = "255.255.255.0"
+IP_ADDRESS = sys.argv[3]#"192.168.10.10" #sys.argv[3]   to do argv in server
+SUBNET_MASK = sys.argv[2]#"255.255.255.0" #sys.argv[2]
+#sys.argv = ["1", "18:60:24:8F:64:90", "3" ,"4"]
 MAC_ADDRESS=sys.argv[1]
+
 
 class LeaseTimeHandler:
     def __init__(self, analyser):
@@ -162,6 +164,12 @@ class IP_allocator:
 
         self.size_queue = 0
         for x in net4.hosts():
+            # reduce reserverd ip's:
+            if x.exploded.split(".")[3] == '1' or \
+                x.exploded.split(".")[3] == '255' or \
+                x.exploded.split(".")[3] == '254' or \
+                x.exploded == IP_ADDRESS:
+                continue
             logging.info(f"inventory ip {x}")
             self.ip_bank.put(x)
             self.size_queue += 1
@@ -176,7 +184,7 @@ class IP_allocator:
         #     else:
         #         #generateDynamic part
 
-    def offer_dictionary(self, mac_str, allocated_dict, offer_dict):
+    def offer_dictionary(self, mac_str, allocated_dict, offer_dict, ip_requested_hint):
         '''
         :param mac_str:
         :param allocated_dict: {mac_str: (ip, timeout, now)}
@@ -186,13 +194,34 @@ class IP_allocator:
                                 that the client was gotten in the last time.
         '''
         if mac_str in allocated_dict.keys():
-             logging.debug("-------------------- found mac --- reoffering ------------------------")
-             ip_requested = allocated_dict[mac_str][0]
-             allocated_dict.pop(mac_str)
+            logging.debug("-------------------- found mac --- reoffering ------------------------")
+            ip_requested = allocated_dict[mac_str][0]
+            allocated_dict.pop(mac_str)
         else:
-             logging.debug("@@@@@@@@@@@@@@@@@@@@@ new mac @@@ offering @@@@@@@@@@@@@@@@@@@@@@@@@")
-             ip_requested = self.ip_bank.get()
-             logging.info(f"!!!!!!!!!!!!! the number of ip addresses that was left: {self.ip_bank.qsize()} !!!!!!!!!!!!!!!!!!!")
+            logging.debug("@@@@@@@@@@@@@@@@@@@@@ new mac @@@ offering @@@@@@@@@@@@@@@@@@@@@@@@@")
+            ip_requested = ""
+            if not ip_requested_hint == "": # hint ip requested
+                tempq = Queue()
+                queue_size = self.ip_bank.qsize()
+                for i in range(queue_size):
+                    ip = self.ip_bank.get()
+                    if ip.exploded == ip_requested_hint:
+                        ip_requested = ip
+                        break
+                    else:
+                        tempq.put(ip)
+
+                queue_size = self.ip_bank.qsize()
+                for i in range(queue_size):
+                    ip = self.ip_bank.get()
+                    tempq.put(ip)
+                self.ip_bank = tempq
+
+            if ip_requested == "": # if not found hint or no hint
+                ip_requested = self.ip_bank.get()
+
+
+            logging.info(f"!!!!!!!!!!!!! the number of ip addresses that was left: {self.ip_bank.qsize()} !!!!!!!!!!!!!!!!!!!")
 
         timeout = Constants.LEASE_TIME
         now = datetime.now()
@@ -294,6 +323,12 @@ class DHCPHandler:
             logging.info(f"{Constants.OP2CMD[Constants.REQUEST]} from mac {mac_str}")
             self.handle_request(packet, mac, mac_str)
 
+    #     elif self.is_decline(packet):
+    #         logging.info(f"{Constants.OP2CMD[Constants.DECLINE]} from mac {mac_str}")
+    #         self.handle_decline(packet,mac,mac_str)
+    #
+    # def handle_decline(self,packet,mac,mac_str):
+    #     self.ip_allocator.offer_dictionary(mac_str,self.leasetime_handler.getAllocatedDict(),
 
     def handle_discover(self, packet,mac, mac_str: str):
         '''
@@ -315,27 +350,36 @@ class DHCPHandler:
         if mac_str in self.leasetime_handler.getOfferDict().keys():
             ip_requested = self.leasetime_handler.getOfferDict()[mac_str][0]
         else:
-            ip_requested = self.ip_allocator.offer_dictionary(mac_str, self.leasetime_handler.getAllocatedDict(), self.leasetime_handler.getOfferDict())
+            client_requested_ip_hint = self.get_requested_address_option(packet)
+
+            ip_requested = self.ip_allocator.offer_dictionary(mac_str, self.leasetime_handler.getAllocatedDict(), self.leasetime_handler.getOfferDict(), client_requested_ip_hint)
+
         logging.info(f"---handle_discover - ip = {ip_requested}")
         #send offer
-        of_pack=self.generate_offer(ip_requested,mac)
+        of_pack=self.generate_offer(packet,ip_requested, mac)
         sendp(of_pack)
         logging.debug("packet was sent")
 
-    def generate_offer(self,ip_requested,mac):
+    def generate_offer(self, packet, ip_requested, mac):
         '''
 
         :param ip_requested:
         :param mac:
         :return: an offer packet
         '''
+        # ("server_id", ip_requested)
         ethernet = Ether(dst="ff:ff:ff:ff:ff:ff", src=MAC_ADDRESS, type=0x800)
         ip = IP(dst="255.255.255.255", src="192.168.10.10")  # dest_addr
         udp = UDP(sport=Constants.server_port, dport=Constants.client_port)
+
+        logging.info(f"packet[BOOTP].xid = {packet[BOOTP].xid} of type = {type(packet[BOOTP].xid)}")
+        logging.info(f"ip_requested = {ip_requested} of type = {type(ip_requested)}")
+        logging.info(f"mac = {mac} of type = {type(mac)}")
+
         bootp = BOOTP(xid=packet[BOOTP].xid, flags=0x8000, op=2, yiaddr=ip_requested, siaddr="192.168.10.10",
                       chaddr=mac)
         dhcp = DHCP(
-            options=[("message-type", Constants.OFFER), ("server_id", ip_requested),
+            options=[("message-type", Constants.OFFER), ("server_id", IP_ADDRESS),
                      ("broadcast_address", "255.255.255.255"),
                      ("router", "172.16.255.254"), ("subnet_mask", "255.255.0.0"),
                      ("lease_time", Constants.LEASE_TIME)])  # router - gateway :"172.16.255.254"
@@ -350,7 +394,7 @@ class DHCPHandler:
         :param mac_str: type-> string
         :return: doesn't return anything, just send a Ack packet.
         '''
-        logging.debug("---handle_request")
+        logging.info("---handle_request")
         logging.debug(mac_str)
         # build acknowledge
         what_to_do = self.analyser.analyse_request(packet)
@@ -383,13 +427,13 @@ class DHCPHandler:
         if self.analyser.this_is_a_ack_msg(packet) == True:
             print(cur_ip)
             # send ack
-            of_pack1=self.generate_ack(cur_ip,mac_str,mac)
+            of_pack1=self.generate_ack(packet,cur_ip,mac_str,mac)
             sendp(of_pack1)
         else:
             # you're in blacklist
             pass
 
-    def generate_ack(self,cur_ip,mac_str,mac):
+    def generate_ack(self,packet,cur_ip,mac_str,mac):
         '''
 
         :param cur_ip:
@@ -397,12 +441,13 @@ class DHCPHandler:
         :param mac:
         :return: an ack packet
         '''
+        #("server_id", cur_ip)
         ethernet = Ether(dst=mac_str, src=MAC_ADDRESS, type=0x800)
         ip = IP(dst=cur_ip, src="192.168.10.10")
         udp = UDP(sport=Constants.server_port, dport=Constants.client_port)
         bootp = BOOTP(xid=packet[BOOTP].xid, op=2, yiaddr=cur_ip, siaddr="192.168.10.10", chaddr=mac)
         dhcp = DHCP(
-            options=[("message-type", Constants.ACK), ("server_id", cur_ip), ("broadcast_address", "255.255.255.255"),
+            options=[("message-type", Constants.ACK), ("server_id", IP_ADDRESS), ("broadcast_address", "255.255.255.255"),
                      ("router", "192.168"
                                 ".255.254"), ("subnet_mask", "255.255.0.0"),
                      ("lease_time", Constants.LEASE_TIME)])  # router - gateway :"172.16.255.254"
@@ -428,6 +473,18 @@ class DHCPHandler:
         of_pack2.show()
         sendp(of_pack2)
 
+    @staticmethod
+    def get_requested_address_option(packet) -> str:
+        '''
+
+        :param packet:
+        :return: True if the packet from type message "discover", else return False
+        '''
+        for option in packet[DHCP].options:
+            if option[0] == "requested_addr":
+                return option[1]
+
+        return ""
 
     @staticmethod
     def is_discover(packet) -> bool:
@@ -440,6 +497,7 @@ class DHCPHandler:
             if option[0]=="message-type":
                 type_message = option[1]
                 break
+
         #type_message = packet[DHCP].options[0][1]  # 1-discover, 3-request
         if type_message == Constants.DISCOVER:
             return True
@@ -461,3 +519,18 @@ class DHCPHandler:
             return True
         else:
             return False
+
+    # @staticmethod
+    # def is_decline(packet) -> bool:
+    #     '''
+    #     :param packet:
+    #     :return: True if the packet from type message "decline", else return False
+    #     '''
+    #     for option in packet[BOOTP][DHCP].options:
+    #         if option[0]=="message-type":
+    #             type_message = option[1]
+    #             break
+    #     if type_message == Constants.DECLINE:
+    #         return True
+    #     else:
+    #         return False

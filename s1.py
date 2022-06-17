@@ -18,7 +18,7 @@ def main():
 
         pa = sniff(lfilter=handler.filter, prn=handler.handle)#expecting to recieve discover msg
 
-
+    print("That is All Fok's!")
 
 if __name__ == "__main__":
     main()
